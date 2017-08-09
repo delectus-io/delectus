@@ -1,0 +1,36 @@
+{
+	"name": "delectus-io/delectus",
+	"type": "silverstripe-module",
+	"description": "Interface module for SilverStripe sites and delectus services",
+	"homepage": "http://github.com/delectus-io",
+	"license": "BSD-3-Clause",
+	"keywords": [
+		"silverstripe",
+		"delectus",
+		"fulltext",
+		"semantic",
+		"search",
+		"index"
+	],
+	"authors": [
+		{
+			"name": "Steve Wake",
+			"homepage": "https://github.com/wakes"
+		}
+	],
+	"require": {
+		"php": ">=5.6",
+		"composer/installers": "*",
+		"silverstripe/framework": "3.x@stable"
+	},
+	"repositories": [
+		{
+			"type": "vcs",
+			"url": "https://github.com/delectus-io/delectus"
+		}
+	],
+	"extra": {
+		"installer-name": "delectus"
+	},
+	"minimum-stability": "dev"
+}
