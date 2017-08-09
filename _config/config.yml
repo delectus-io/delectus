@@ -1,0 +1,31 @@
+---
+Name: delectus-core-config
+---
+Injector:
+  DelectusTransport:
+    class: DelectusTransportCURL
+DelectusApiRequest:
+  extensions:
+    - DelectusApiRequestExtension
+DelectusModule:
+  # Set to the client token you have been allocated, used to communicate with the delectus service
+  # can be overriden in Delectus tab of CMS
+  client_token: ''
+  # Set to the client secret you have been assigned, used to secure information sent to the delectus service.
+  # can be overriden in Delectus tab of CMS
+  client_salt: ''
+  # Set to the site id for the current site, used to communicate with the delectus service
+  # can be overriden in Delectus tab of CMS
+  site_identifier: ''
+  # Pass site and auth tokens on the url when making requests, e.g. if X-Client-Auth and X-Client-Site
+  # headers aren't being passed through by a proxy or some such. Can be overriden in Delectus tab of CMS if
+  tokens_in_url: false
+  # openssl encryption algorythm to use for request and response data (set to empty to not encrypt data)
+  # can be overriden in Delectus tab of CMS to enable/disable encryption
+  encryption_algorythms: [ 'aes-256-ctr' ]
+  # Endpoints for this server in form of https://api.delectus.io/
+  endpoints:
+    index: 'https://api.delectus.io/'
+    search: 'https://api.delectus.io/'
+  # API version this module targets.
+  version: 'v1'
