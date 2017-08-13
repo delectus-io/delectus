@@ -1,28 +1,11 @@
 <?php
 
+use Delectus\Models\Client;
+use Delectus\Models\WebSite;
 use \DelectusModule as Module;
 
-class DelectusTransportCURL extends Object {
+class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInterface {
 	const UserAgentString = 'Delectus Backend {version} {module}';
-
-	// content type we send and receive fromt he Delectus service
-	const ContentType = 'application/json';
-
-	// keys so these can be changed in config, not used to generate the headers
-	const ContentTypeHeader = 'ContentType';
-
-	const AuthTokenParameter = 'at';
-	const AuthTokenHeader    = 'X-Client-Auth';
-
-	const SiteIdentifierParameter = 'si';
-	const SiteIdentifierHeader    = 'X-Site-Identifier';
-
-	const RequestTokenParameter = 'rt';
-	const RequestTokenHeader    = 'X-Request-Token';
-
-	const RequestItemInfoKey  = 'item';
-	const RequestEncryptedKey = 'encrypted';
-
 	/**
 	 * raw options for curl request incase you need to tinker to get working in
 	 * your environment. Try to keep them safe!
@@ -59,22 +42,21 @@ class DelectusTransportCURL extends Object {
 	 *
 	 * If config.tokens_in_url are specified will also add 'at' param to querystring for the auth token.
 	 *
-	 * @param DelectusApiRequest|ApiRequestTask $request
-	 * @param array                             $data other data not in DelectusApiRequest to pass in request
+	 * @param DelectusApiRequestModel $request incoming request parameters, updated to reflect results. written to database.
+	 * @param array                   $data    optional data to add to request payload
 	 *
 	 * @return mixed
 	 * @throws \Exception
 	 * @throws \InvalidArgumentException
 	 */
-	public function makeRequest( $request, $data = [] ) {
+	public function makeRequest( DelectusApiRequestModel $request, $data = [] ) {
 		$ch       = null;
 		$response = null;
 
-		$model = $request->getModel();
-
-		// incase model wasn't set via setModel()
-		$request->ModelClass = $model->ClassName;
-		$request->ModelID    = $model->ID;
+		// make sure request is fully initialised
+		if ( ! $request->isInDB() ) {
+			$request->write();
+		}
 
 		$url = static::endpoint( $request->Endpoint, $request->Action );
 
@@ -86,23 +68,43 @@ class DelectusTransportCURL extends Object {
 			self::RequestTokenHeader => $request->RequestToken,
 		];
 
-		if ( static::tokens_in_url() ) {
-			// pass auth on query string
-			$url .= '?' . self::AuthTokenParameter . '=' . static::auth_token()
-			        . '&' . self::SiteIdentifierParameter . '=' . static::site_token()
-			        . '&' . self::RequestTokenParameter . '=' . $request->RequestToken;
-		}
-
 		try {
+			if ( DelectusModule::tokens_in_url() ) {
+				// pass auth and other tokens on query string
+
+				if ( 'https' != strtolower( parse_url( $url, PHP_URL_SCHEME ) ) ) {
+					if ( Director::isLive() ) {
+						throw new Exception( "In live mode I Can't pass tokens in URL if not https url" );
+					}
+				}
+
+				$url .= '?' . self::AuthTokenParameter . '=' . static::auth_token()
+				        . '&' . self::SiteIdentifierParameter . '=' . static::site_token()
+				        . '&' . self::RequestTokenParameter . '=' . $request->RequestToken;
+			}
 			$ch = curl_init( $url );
 
-			curl_setopt_array( $ch, static::curl_options( $data ) );
-			curl_setopt_array( $ch, static::curl_headers( $headers ) );
+			curl_setopt_array( $ch, $data = static::curl_options( $data ) );
+			curl_setopt_array( $ch, $headers = static::curl_headers( $headers ) );
 
-			$request->Status = $request::StatusSent;
+			if ( Director::isDev() ) {
+				$request->Headers = json_encode( $headers );
+				$request->Data    = json_encode( $data );
+			} else {
+				$request->Headers = static::encode_data( $headers );
+				$request->Data    = static::encode_data( $data );
+			}
+			$request->Mode   = ( Director::isLive() ? 'live' : ( Director::isTest() ? 'test' : 'dev' ) );
+			$request->Status = $request::StatusSending;
+
 			$request->write();
 
+			$request->RequestStartMS = microtime( true );
+
 			$response = curl_exec( $ch );
+
+			$request->RequestEndMS = microtime( true );
+
 			if ( $response === false ) {
 				$request->Status  = $request::StatusFailed;
 				$request->Outcome = $request::OutcomeFailure;
@@ -142,6 +144,7 @@ class DelectusTransportCURL extends Object {
 				curl_close( $ch );
 			}
 		}
+		$request->write();
 
 		return $response;
 	}
@@ -192,8 +195,8 @@ class DelectusTransportCURL extends Object {
 					'Delectus.UserAgentString',
 					static::UserAgentString,
 					[
-						'version' => static::version(),
-						'module'  => static::module_name(),
+						'version' => DelectusModule::version(),
+						'module'  => DelectusModule::module_name(),
 					]
 				),
 			],
@@ -207,17 +210,18 @@ class DelectusTransportCURL extends Object {
 		);
 		// if we have any arrays then implode to a string header
 		$headers = array_map(
-			function ($header) {
-				if (is_array($header)) {
-					$header = implode(': ', $header);
+			function ( $header ) {
+				if ( is_array( $header ) ) {
+					$header = implode( ': ', $header );
 				}
+
 				return $header;
 			},
 			$headers
 		);
 
 		return [
-			CURLOPT_HEADER => $headers
+			CURLOPT_HEADER => $headers,
 		];
 	}
 
@@ -287,8 +291,8 @@ class DelectusTransportCURL extends Object {
 	protected static function auth_token() {
 		return base64_encode(
 			static::encrypt_data(
-				static::client_token(),
-				static::client_salt()
+				DelectusModule::client_token(),
+				DelectusModule::client_salt()
 			)
 		);
 	}
@@ -303,8 +307,8 @@ class DelectusTransportCURL extends Object {
 	protected static function site_token() {
 		return base64_encode(
 			static::encrypt_data(
-				static::site_identifier(),
-				static::client_salt()
+				DelectusModule::site_identifier(),
+				DelectusModule::client_salt()
 			)
 		);
 	}
@@ -360,7 +364,7 @@ class DelectusTransportCURL extends Object {
 	 * @throws \InvalidArgumentException
 	 */
 	public static function encode_data( $data, $contentType = self::ContentType ) {
-		return static::encrypt_data( json_encode( $data ), static::client_salt() );
+		return static::encrypt_data( json_encode( $data ), DelectusModule::client_salt() );
 	}
 
 	/**
@@ -373,7 +377,55 @@ class DelectusTransportCURL extends Object {
 	 * @throws \InvalidArgumentException
 	 */
 	public static function decode_data( $data, $contentType = self::ContentType ) {
-		return json_decode( static::decrypt_data( $data, static::client_salt() ), true );
+		return json_decode( static::decrypt_data( $data, DelectusModule::client_salt() ), true );
 	}
 
+	/**
+	 * Given an HTTP request return the ClientToken from it
+	 *
+	 * @param \SS_HTTPRequest $request
+	 *
+	 * @return string|null
+	 * @throws \InvalidArgumentException
+	 */
+	public static function client_token( SS_HTTPRequest $request ) {
+		$data = static::request_data( $request );
+
+		return isset( $data[ Client::RequestTokenFieldName ] )
+			? $data[ Client::RequestTokenFieldName ]
+			: null;
+	}
+
+	/**
+	 * Given an HTTP request return the SiteIdentifier from it
+	 *
+	 * @param \SS_HTTPRequest $request
+	 *
+	 * @return string|null
+	 * @throws \InvalidArgumentException
+	 */
+	public static function site_identifier( SS_HTTPRequest $request ) {
+		$data = static::request_data( $request );
+
+		return isset( $data[ WebSite::RequestTokenFieldName ] )
+			? $data[ WebSite::RequestTokenFieldName ]
+			: null;
+	}
+
+	/**
+	 * return data from request (generally the request body)
+	 *
+	 * @param \SS_HTTPRequest $request
+	 * @param bool            $decode decrypt and json_decode if true, otherwise the raw data maybe encrypted
+	 *
+	 * @return mixed|null|string
+	 * @throws \InvalidArgumentException
+	 */
+	public static function request_data( SS_HTTPRequest $request, $decode = true ) {
+		if ( $decode ) {
+			return static::decode_data( $request->getBody() );
+		} else {
+			return $request->getBody();
+		}
+	}
 }

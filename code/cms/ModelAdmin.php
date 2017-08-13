@@ -2,7 +2,7 @@
 
 class DelectusModelAdmin extends ModelAdmin {
 	private static $managed_models = [
-		'DelectusApiRequest'
+		'DelectusApiRequestModel'
 	];
 
 	private static $url_segment = 'delectus';

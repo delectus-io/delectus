@@ -4,9 +4,6 @@ Name: delectus-core-config
 Injector:
   DelectusTransport:
     class: DelectusTransportCURL
-DelectusApiRequest:
-  extensions:
-    - DelectusApiRequestExtension
 DelectusModule:
   # Set to the client token you have been allocated, used to communicate with the delectus service
   # can be overriden in Delectus tab of CMS

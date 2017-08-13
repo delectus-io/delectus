@@ -1,6 +1,10 @@
 <?php
 
-class DelectusDataObjectExtension extends DataExtension {
+/**
+ * DelectusDataObjectExtension provides shared Fields, config and functions for extension to be added to models to provide index and search functionality,
+ * for example DelectusFileExtension and DelectusPageExtension.
+ */
+abstract class DelectusDataObjectExtension extends DataExtension {
 	const StatusFieldName      = 'DelectusStatus';
 	const UpdatedDateFieldName = 'DelectusLastUpdated';
 	const RemoteLinkFieldName  = 'DelectusRemoteLink';

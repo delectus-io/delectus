@@ -10,57 +10,19 @@ class DelectusApiRequestService extends \Object {
 	// passed to Injector to create the transport
 	const TransportName = 'DelectusTransport';
 
-	// wether to send request to delectus services immediately or via a queuedjob
-	private static $send_immediate = false;
-
-	// how far into the future the queued job should run if send_immediate is false
+	// how far into the future the queued job should run ('now' for send immediately)
 	private static $queue_delay = '+1 mins';
 
 	/**
-	 * Set to the client token you have been allocated, used to communicate with the delectus service
-	 *
-	 * @var string
-	 */
-	private static $client_token = '';
-
-	/**
-	 * Set to the client secret you have been assigned, used to secure information sent to the delectus service.
-	 *
-	 * @var string
-	 */
-	private static $client_salt = '';
-
-	/**
-	 * Set to the site id for the current site, used to communicate with the delectus service
-	 *
-	 * @var string
-	 */
-	private static $site_identifier = '';
-
-	/**
-	 * Endpoints for this server in form of https://api.delectus.io/
-	 *
-	 * @var array
-	 */
-	private static $endpoints = [
-		#   'index' => https://api.delectus.io/
-	];
-	/**
-	 * API version this module targets.
-	 *
-	 * @var string
-	 */
-	private static $version = 'v1';
-
-	/**
-	 * @param \DelectusApiRequest $request
-	 * @param bool                $immediate send now, overrides config.send_immediate, otherwise will queue
+	 * @param \DelectusApiRequestModel $request
+	 * @param bool                     $immediate send now, overrides config.send_immediate, otherwise will queue
 	 *
 	 * @return bool|int|mixed
+	 * @throws \Delectus\Exceptions\Exception
 	 * @throws \InvalidArgumentException
 	 * @throws \ValidationException
 	 */
-	public function makeRequest( DelectusApiRequest $request, $immediate = false ) {
+	public function makeRequest( DelectusApiRequestModel $request, $immediate = false ) {
 		$request->Endpoint       = static::Endpoint;
 		$request->ClientToken    = DelectusModule::client_token();
 		$request->Version        = DelectusModule::version();
@@ -100,11 +62,11 @@ class DelectusApiRequestService extends \Object {
 	 * Submit the request as a QueuedJob for picking up later. updates $request
 	 * but doesn't write it.
 	 *
-	 * @param \DelectusApiRequest $request
+	 * @param \DelectusApiRequestModel $request
 	 *
 	 * @return int
 	 */
-	protected function queueRequest( DelectusApiRequest $request ) {
+	protected function queueRequest( DelectusApiRequestModel $request ) {
 		$queueService = new QueuedJobService();
 
 		$jobID = $queueService->queueJob(
@@ -127,14 +89,15 @@ class DelectusApiRequestService extends \Object {
 	/**
 	 * Make the requst direct to delectus service, updates $request but doesn't write it.
 	 *
-	 * @param \DelectusApiRequest $request
+	 * @param \DelectusApiRequestModel $request
 	 *
-	 * @param string              $resultMessage
+	 * @param string                   $resultMessage
 	 *
 	 * @return bool|mixed
+	 * @throws \Delectus\Exceptions\Exception
 	 * @throws \ValidationException
 	 */
-	protected function sendRequest( DelectusApiRequest $request, &$resultMessage = '' ) {
+	protected function sendRequest( DelectusApiRequestModel $request, &$resultMessage = '' ) {
 		$result = null;
 		if ( $model = $request->getModel() ) {
 			$request->Status = $request::StatusSending;
@@ -173,14 +136,14 @@ class DelectusApiRequestService extends \Object {
 	 * @param string     $description of what request does
 	 * @param string     $action
 	 *
-	 * @return \DelectusApiRequest
+	 * @return \DelectusApiRequestModel
 	 * @throws \ValidationException
 	 */
 	protected static function log_request( $model, $description, $action ) {
-		$request = new DelectusApiRequest( [
+		$request = new DelectusApiRequestModel( [
 			'Title'  => $description,
 			'Action' => $action,
-			'Link'   => $model->Link()
+			'Link'   => $model->Link(),
 		] );
 		$request->setModel( $model );
 		$request->write();

@@ -6,7 +6,7 @@ abstract class DelectusQueuedJob extends AbstractQueuedJob implements QueuedJob 
 	// set to the name of the service to use, e.g. 'DelectusIndexService'
 	const ServiceName = '';
 
-	public function __construct( DelectusApiRequest $request ) {
+	public function __construct( DelectusApiRequestModel $request ) {
 		$this->requestID = $request->ID;
 		$this->title     = static::Title . ': ' . $request->Title;
 	}
@@ -19,10 +19,10 @@ abstract class DelectusQueuedJob extends AbstractQueuedJob implements QueuedJob 
 	 *
 	 */
 	public function process() {
-		/** @var \DelectusApiRequest $request */
-		$request = DelectusApiRequest::get()->byID( $this->requestID );
+		/** @var \DelectusApiRequestModel $request */
+		$request = DelectusApiRequestModel::get()->byID( $this->requestID );
 
-		DB::query( "update " . DelectusApiRequest::class . " set Status = '" . $request::StatusSending . "', LastStatusDate = '" . date( 'Y-m-d H:i:s' ) . "' where ID = $request->ID and Status = '" . $request::StatusQueued . "'" );
+		DB::query( "update " . DelectusApiRequestModel::class . " set Status = '" . $request::StatusSending . "', LastStatusDate = '" . date( 'Y-m-d H:i:s' ) . "' where ID = $request->ID and Status = '" . $request::StatusQueued . "'" );
 		if ( DB::affected_rows() != 1 ) {
 			// something else has grabbed the request in the meantime, skip it
 			return;

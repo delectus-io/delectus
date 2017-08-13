@@ -9,7 +9,7 @@ use Delectus\ModelController;
 abstract class DelectusCallbackController extends ModelController {
 
 	/**
-	 * Check authentication and site tokens from request agains the current site tokens configured
+	 * Check authentication and site tokens from request against the current site tokens configured
 	 * in SiteConfig or config yaml.
 	 *
 	 * @param \SS_HTTPRequest $request
@@ -20,12 +20,14 @@ abstract class DelectusCallbackController extends ModelController {
 	protected function checkRequestIsValid( SS_HTTPRequest $request = null) {
 		$request = $request ?: $this->getRequest();
 
+		$transport = DelectusModule::transport();
+
 		if ( DelectusModule::tokens_in_url() ) {
-			$authToken = $request->getVar( DelectusModule::AuthTokenParameter );
-			$siteToken = $request->getVar( DelectusModule::SiteIdentifierParameter );
+			$authToken = $request->getVar( $transport::AuthTokenParameter );
+			$siteToken = $request->getVar( $transport::SiteIdentifierParameter );
 		} else {
-			$authToken = $request->getHeader( DelectusModule::AuthTokenHeader );
-			$siteToken = $request->getHeader( DelectusModule::SiteIdentifierHeader );
+			$authToken = $request->getHeader( $transport::AuthTokenHeader );
+			$siteToken = $request->getHeader( $transport::SiteIdentifierHeader );
 		}
 		return $this->checkAuthToken( $authToken ) && $this->checkSiteIdentifier( $siteToken );
 	}
@@ -43,7 +45,7 @@ abstract class DelectusCallbackController extends ModelController {
 		$clientToken = DelectusModule::client_token();
 		$clientSalt  = DelectusModule::client_secret();
 
-		$authToken = DelectusModule::decrypt_data( $token, $clientSalt );
+		$authToken = DelectusModule::transport()->decrypt_data( $token, $clientSalt );
 
 		return $authToken && ( $clientToken == $authToken );
 	}
@@ -61,7 +63,7 @@ abstract class DelectusCallbackController extends ModelController {
 		$siteToken  = DelectusModule::site_identifier();
 		$clientSalt = DelectusModule::client_salt();
 
-		$checkToken = DelectusModule::decrypt_data( $token, $clientSalt );
+		$checkToken = DelectusModule::transport()->decrypt_data( $token, $clientSalt );
 
 		return $checkToken && ( $siteToken == $checkToken );
 	}
