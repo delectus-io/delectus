@@ -21,7 +21,8 @@
 	"require": {
 		"php": ">=5.6",
 		"composer/installers": "*",
-		"silverstripe/framework": "3.x@stable"
+		"silverstripe/framework": "3.x@stable",
+		"symbiote/silverstripe-queuedjobs": "2.x"
 	},
 	"repositories": [
 		{

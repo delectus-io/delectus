@@ -16,7 +16,7 @@ class DelectusSiteConfigExtension extends DataExtension {
 		self::ClientSaltFieldName          => 'Varchar(255)',
 		self::ClientSecretFieldName        => 'Varchar(255)',
 		self::SiteIdentifierFieldName      => 'Varchar(255)',
-		self::EncryptionAlgorythmFieldName => 'Varchar(32)',
+		self::EncryptionAlgorythmFieldName => 'Varchar(255)',
 		self::TokensInURLFieldName         => 'Boolean',
 	];
 
@@ -30,8 +30,7 @@ class DelectusSiteConfigExtension extends DataExtension {
 				),
 				DelectusModule::client_token() )
 				->setRightTitle( _t( 'Delectus.ClientTokenDescription', "Enter the client token from your Delectus client account, or set in config files" ) )
-				->setAttribute( 'placeholder', "e.g. " . DelectusModule::generate_token() )
-			,
+				->setAttribute( 'placeholder', "e.g. " . DelectusModule::generate_token() ),
 			TextField::create(
 				self::ClientSaltFieldName,
 				_t(
@@ -88,6 +87,27 @@ class DelectusSiteConfigExtension extends DataExtension {
 					DelectusModule::cms_tab_name(),
 					$field
 				);
+			}
+		}
+	}
+
+	/**
+	 * Regenerate new values for token fields if they are empty. Remember also to update these values with Delectus services so
+	 * you can still validate and encrypt api calls.
+	 *
+	 * @throws \Exception
+	 */
+	public function onBeforeWrite() {
+		parent::onBeforeWrite();
+		$tokenFields = [
+			self::ClientTokenFieldName,
+			self::ClientSaltFieldName,
+			self::ClientSecretFieldName,
+			self::SiteIdentifierFieldName
+		];
+		foreach ($tokenFields as $fieldName) {
+			if (!$this->owner->$fieldName) {
+				$this->owner->$fieldName = DelectusModule::generate_token();
 			}
 		}
 	}

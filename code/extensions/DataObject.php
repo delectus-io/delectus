@@ -31,19 +31,29 @@ abstract class DelectusDataObjectExtension extends DataExtension {
 
 	public function updateCMSFields( FieldList $fields ) {
 		parent::updateCMSFields( $fields );
-		$fields->addFieldToTab(
-			DelectusModule::cms_tab_name(),
-			$field = new TextField(
-				static::ModelTokenFieldName,
-				_t(
-					'Delectus.ModelTokenLabel',
-					"Delectus Token"
+		if ($this->addDelectusTokenField()) {
+			$fields->addFieldToTab(
+				DelectusModule::cms_tab_name(),
+				$field = new TextField(
+					static::ModelTokenFieldName,
+					_t(
+						'Delectus.ModelTokenLabel',
+						"Delectus Token"
+					)
 				)
-			)
-		);
-		if ( ! Permission::check( 'ADMIN' ) ) {
-			$field->performReadonlyTransformation();
+			);
+			if ( ! Permission::check( 'ADMIN' ) ) {
+				$field->performReadonlyTransformation();
+			}
 		}
+	}
+
+	/**
+	 * Sometimes we don't want to add the token field to a model, e.g. if we're in assets and at the root folder.
+	 * @return bool
+	 */
+	protected function addDelectusTokenField() {
+		return true;
 	}
 
 	/**
@@ -58,8 +68,7 @@ abstract class DelectusDataObjectExtension extends DataExtension {
 			$return = \Config::inst()->get( static::class, 'delectus_enabled' );
 			\Config::inst()->update( static::class, 'delectus_enabled', $enable );
 		} else {
-			$return = \Config::inst()->get( static::class, 'delectus_enabled' )
-				&& $this->owner->config()->get( 'delectus_enabled', Config::UNINHERITED ) ;
+			$return = \Config::inst()->get( static::class, 'delectus_enabled' );
 		}
 
 		return (bool) $return;

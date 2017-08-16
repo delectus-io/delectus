@@ -70,8 +70,8 @@ class DelectusApiRequestModel extends DelectusModel {
 
 	private static $summary_fields = [
 		'Title'         => 'Description',
-		'Model.Title'   => 'Model Title',
-		'Model.Link'    => 'Model Link',
+		'ModelTitle'    => 'Model Title',
+		'ModelLink'     => 'Model Link',
 		'ModelToken'    => 'Model Token',
 		'Status'        => 'Status',
 		'Outcome'       => 'Outcome',
@@ -83,23 +83,31 @@ class DelectusApiRequestModel extends DelectusModel {
 	 * Return the model from ModelClass and ModelID or null if can't or it doesn't exist in database (anymore)
 	 *
 	 * @return \DataObject
-	 * @throws \Delectus\Exceptions\Exception
+	 * @throws \DelectusException
 	 */
 	public function getModel() {
 		$model = null;
-		if ( ! $this->ModelID ) {
-			throw new Exception( "No ModelID" );
+		if ( $this->ModelID && $this->ModelClass && ClassInfo::exists( $this->ModelClass ) ) {
+			$modelClass = $this->ModelClass;
+			$model      = $modelClass::get()->byID( $this->ModelID );
 		}
-		if ( ! $this->ModelClass ) {
-			throw new Exception( "No ModelClass" );
-		}
-		if ( ! ClassInfo::exists( $this->ModelClass ) ) {
-			throw new Exception( "Bad model class '$this->ModelClass'" );
-		}
-		$modelClass = $this->ModelClass;
-		$model      = $modelClass::get()->byID( $this->ModelID );
+		return $model;
+	}
 
-		return ( $model && $model->exists() ) ? $model : null;
+	public function ModelTitle() {
+		if ( $model = $this->getModel() ) {
+			return $model->Title;
+		} else {
+			return '';
+		}
+	}
+
+	public function ModelLink() {
+		if ( $model = $this->getModel() ) {
+			return $model->Link();
+		} else {
+			return '';
+		}
 	}
 
 	public function setModel( $model ) {

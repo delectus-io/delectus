@@ -90,10 +90,10 @@ class DelectusApiRequestService extends \Object {
 	 * Make the requst direct to delectus service, updates $request but doesn't write it.
 	 *
 	 * @param \DelectusApiRequestModel $request
-	 *
 	 * @param string                   $resultMessage
 	 *
 	 * @return bool|mixed
+	 * @throws \DelectusException
 	 * @throws \ValidationException
 	 */
 	protected function sendRequest( DelectusApiRequestModel $request, &$resultMessage = '' ) {

@@ -107,7 +107,7 @@ abstract class DelectusModule extends \Object {
 	public static function tokens_in_url() {
 		static $tokensInURL;
 		if ( is_null( $tokensInURL ) ) {
-			$tokensInURL = SiteConfig::current_site_config()->get( static::TokensInURLFieldName )
+			$tokensInURL = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::TokensInURLFieldName}
 				?: self::config()->get( 'tokens_in_rul' );
 
 		}
@@ -124,7 +124,7 @@ abstract class DelectusModule extends \Object {
 	public static function client_token() {
 		static $clientToken;
 		if ( is_null( $clientToken ) ) {
-			$clientToken = SiteConfig::current_site_config()->get( static::ClientTokenFieldName )
+			$clientToken = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::ClientTokenFieldName}
 				?: self::config()->get( 'client_token' );
 
 		}
@@ -141,7 +141,7 @@ abstract class DelectusModule extends \Object {
 	public static function client_salt() {
 		static $salt;
 		if ( is_null( $salt ) ) {
-			$salt = SiteConfig::current_site_config()->get( static::ClientTokenFieldName )
+			$salt = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::ClientSaltFieldName}
 				?: self::config()->get( 'client_salt' );
 		}
 
@@ -157,7 +157,7 @@ abstract class DelectusModule extends \Object {
 	public static function client_secret() {
 		static $secret;
 		if ( is_null( $secret ) ) {
-			$secret = SiteConfig::current_site_config()->get( static::ClientSecretFieldName )
+			$secret = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::ClientSecretFieldName}
 				?: self::config()->get( 'client_secret' );
 		}
 
@@ -174,7 +174,7 @@ abstract class DelectusModule extends \Object {
 		static $siteID;
 
 		if ( is_null( $siteID ) ) {
-			$siteID = SiteConfig::current_site_config()->get( static::SiteIdentifierFieldName )
+			$siteID = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::SiteIdentifierFieldName}
 				?: self::config()->get( 'site_identifier' );
 		}
 
