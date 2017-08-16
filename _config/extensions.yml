@@ -1,0 +1,6 @@
+---
+Name: delectus-extensions
+---
+SiteConfig:
+  extensions:
+    - DelectusSiteConfigExtension

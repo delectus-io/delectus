@@ -1,6 +1,6 @@
 <?php
 
-use Delectus\Exceptions\Exception;
+use DelectusException as Exception;
 
 /**
  * DelectusApiRequestModel model records requests made to delectus services and is updated by

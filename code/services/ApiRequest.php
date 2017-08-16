@@ -1,4 +1,5 @@
 <?php
+use DelectusException as Exception;
 
 /**
  * Base class for services which make requests to the delectus services.
@@ -18,7 +19,6 @@ class DelectusApiRequestService extends \Object {
 	 * @param bool                     $immediate send now, overrides config.send_immediate, otherwise will queue
 	 *
 	 * @return bool|int|mixed
-	 * @throws \Delectus\Exceptions\Exception
 	 * @throws \InvalidArgumentException
 	 * @throws \ValidationException
 	 */
@@ -94,7 +94,6 @@ class DelectusApiRequestService extends \Object {
 	 * @param string                   $resultMessage
 	 *
 	 * @return bool|mixed
-	 * @throws \Delectus\Exceptions\Exception
 	 * @throws \ValidationException
 	 */
 	protected function sendRequest( DelectusApiRequestModel $request, &$resultMessage = '' ) {

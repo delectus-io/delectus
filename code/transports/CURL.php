@@ -1,9 +1,5 @@
 <?php
 
-use Delectus\Models\Client;
-use Delectus\Models\WebSite;
-use \DelectusModule as Module;
-
 class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInterface {
 	const UserAgentString = 'Delectus Backend {version} {module}';
 	/**
@@ -380,52 +376,4 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 		return json_decode( static::decrypt_data( $data, DelectusModule::client_salt() ), true );
 	}
 
-	/**
-	 * Given an HTTP request return the ClientToken from it
-	 *
-	 * @param \SS_HTTPRequest $request
-	 *
-	 * @return string|null
-	 * @throws \InvalidArgumentException
-	 */
-	public static function client_token( SS_HTTPRequest $request ) {
-		$data = static::request_data( $request );
-
-		return isset( $data[ Client::RequestTokenFieldName ] )
-			? $data[ Client::RequestTokenFieldName ]
-			: null;
-	}
-
-	/**
-	 * Given an HTTP request return the SiteIdentifier from it
-	 *
-	 * @param \SS_HTTPRequest $request
-	 *
-	 * @return string|null
-	 * @throws \InvalidArgumentException
-	 */
-	public static function site_identifier( SS_HTTPRequest $request ) {
-		$data = static::request_data( $request );
-
-		return isset( $data[ WebSite::RequestTokenFieldName ] )
-			? $data[ WebSite::RequestTokenFieldName ]
-			: null;
-	}
-
-	/**
-	 * return data from request (generally the request body)
-	 *
-	 * @param \SS_HTTPRequest $request
-	 * @param bool            $decode decrypt and json_decode if true, otherwise the raw data maybe encrypted
-	 *
-	 * @return mixed|null|string
-	 * @throws \InvalidArgumentException
-	 */
-	public static function request_data( SS_HTTPRequest $request, $decode = true ) {
-		if ( $decode ) {
-			return static::decode_data( $request->getBody() );
-		} else {
-			return $request->getBody();
-		}
-	}
 }

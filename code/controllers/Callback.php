@@ -1,12 +1,10 @@
 <?php
 
-use Delectus\ModelController;
-
 /**
  * Base class for controllers which handle callbacks from delectus services into
  * a client site.
  */
-abstract class DelectusCallbackController extends ModelController {
+abstract class DelectusCallbackController extends Controller {
 
 	/**
 	 * Check authentication and site tokens from request against the current site tokens configured
