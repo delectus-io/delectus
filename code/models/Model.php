@@ -31,7 +31,7 @@ use DelectusException as Exception;
 	 *
 	 * @param \SS_HTTPRequest $request
 	 *
-	 * @return DataObject|\Delectus\CoreModel|null
+	 * @return DataObject|\Delectus\Core\Model|null
 	 * @throws \Exception
 	 */
 	public static function find_requested( \SS_HTTPRequest $request ) {

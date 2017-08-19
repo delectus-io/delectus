@@ -271,9 +271,13 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 	protected static function endpoint( $endpoint, $action ) {
 		return Controller::join_links(
 			static::config()->get( 'endpoints' )[ $endpoint ],
-			DelectusModule::version(),
+			static::version(),
 			$action
 		);
+	}
+
+	protected static function version() {
+		return DelectusModule::version();
 	}
 
 	/**

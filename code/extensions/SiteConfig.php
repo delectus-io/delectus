@@ -84,7 +84,7 @@ class DelectusSiteConfigExtension extends DataExtension {
 					$field->performReadonlyTransformation();
 				}
 				$fields->addFieldToTab(
-					DelectusModule::cms_tab_name(),
+					DelectusModule::admin_tab_name(),
 					$field
 				);
 			}

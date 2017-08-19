@@ -15,10 +15,36 @@ class DelectusApiRequestService extends \Object {
 	private static $queue_delay = '+1 mins';
 
 	/**
+	 * May be set by Injector, if not the Injector used to create a DelectusTransport
+	 * @var \DelectusTransportInterface
+	 */
+	protected $transport;
+
+	/**
+	 * Called by injector to set transport property.
+	 * @param \DelectusTransportInterface $transport
+	 */
+	public function setTransport(DelectusTransportInterface $transport) {
+		$this->transport = $transport;
+	}
+
+	/**
+	 * Return transport set by DI or created by Injector explicitly
+	 * @return mixed
+	 */
+	public function getTransport() {
+		if (!$this->transport) {
+			$this->transport = \Injector::inst()->get( self::TransportName );
+		}
+		return $this->transport;
+	}
+
+	/**
 	 * @param \DelectusApiRequestModel $request
 	 * @param bool                     $immediate send now, overrides config.send_immediate, otherwise will queue
 	 *
 	 * @return bool|int|mixed
+	 * @throws \DelectusException
 	 * @throws \InvalidArgumentException
 	 * @throws \ValidationException
 	 */
@@ -103,7 +129,7 @@ class DelectusApiRequestService extends \Object {
 			$request->write();
 
 			try {
-				$transport = static::transport();
+				$transport = $this->getTransport();
 
 				$result = $transport->makeRequest( $request );
 
@@ -149,15 +175,6 @@ class DelectusApiRequestService extends \Object {
 
 		return $request;
 
-	}
-
-	/**
-	 * return a transport using self.TransportName as the service name for Injector
-	 *
-	 * @return DelectusTransportInterface
-	 */
-	public static function transport() {
-		return Injector::inst()->create( static::TransportName );
 	}
 
 }
