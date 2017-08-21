@@ -93,10 +93,12 @@ class DelectusApiRequestService extends \Object {
 	 * @return int
 	 */
 	protected function queueRequest( DelectusApiRequestModel $request ) {
-		$queueService = new QueuedJobService();
+		$queueService = singleton('QueuedJobService');
+
+		$job = new DelectusIndexJob( $request );
 
 		$jobID = $queueService->queueJob(
-			new DelectusIndexJob( $request ),
+			$job,
 			date( 'Y-m-d H:i:s', strtotime( static::config()->get( 'queued_delay' ) ) ),
 			null,
 			'Delectus'

@@ -44,6 +44,9 @@ class DelectusModule extends \Object {
 	private static $endpoints = [
 		#   'index' => https://api.delectus.io/
 	];
+
+	private static $module_name = 'delectus';
+
 	/**
 	 * API version this module targets.
 	 *
@@ -177,12 +180,12 @@ class DelectusModule extends \Object {
 	}
 
 	/**
-	 * Return version number from config.
+	 * Return version number from config of this exact module (so uninherited)
 	 *
 	 * @return string
 	 */
 	public static function version() {
-		return static::config()->get( 'version' );
+		return static::config()->get( 'version', Config::UNINHERITED );
 	}
 
 	public static function module_name() {

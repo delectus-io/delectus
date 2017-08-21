@@ -74,12 +74,12 @@ class DelectusSiteConfigExtension extends DataExtension {
 				),
 				DelectusModule::encryption_algorythm() )
 				->setRightTitle( _t( 'Delectus.EncryptionAlgorythmDescription', "How to encrypt data in requests, only choose No Encryption if over ssl or local testing!" ) )
-				->setEmptyString( 'No encryption (not advised)' )
+				->setEmptyString( 'No encryption (not advised)' ),
 
 		];
 		/** @var \FormField $field */
-		foreach ($adminFields as $field) {
-			if (!$fields->dataFieldByName( $field->getName())) {
+		foreach ( $adminFields as $field ) {
+			if ( ! $fields->dataFieldByName( $field->getName() ) ) {
 				if ( ! Permission::check( 'ADMIN' ) ) {
 					$field->performReadonlyTransformation();
 				}
@@ -100,13 +100,13 @@ class DelectusSiteConfigExtension extends DataExtension {
 	public function onBeforeWrite() {
 		parent::onBeforeWrite();
 		$tokenFields = [
-			self::ClientTokenFieldName,
-			self::ClientSaltFieldName,
-			self::ClientSecretFieldName,
-			self::SiteIdentifierFieldName
+			self::ClientTokenFieldName    => 'client_token',
+			self::ClientSaltFieldName     => 'client_salt',
+			self::ClientSecretFieldName   => 'client_secret',
+			self::SiteIdentifierFieldName => 'site_identifier',
 		];
-		foreach ($tokenFields as $fieldName) {
-			if (!$this->owner->$fieldName) {
+		foreach ( $tokenFields as $fieldName => $configVarName ) {
+			if ( ! $this->owner->$fieldName && ! DelectusModule::config()->get( $configVarName ) ) {
 				$this->owner->$fieldName = DelectusModule::generate_token();
 			}
 		}
