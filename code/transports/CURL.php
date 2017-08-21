@@ -1,7 +1,9 @@
 <?php
 
-class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInterface {
-	const UserAgentString = 'Delectus Backend {version} {module}';
+class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTransportInterface {
+	const AcceptTypeHeader  = 'Accept-Type';
+	const ContentTypeHeader = 'Content-Type';
+	const UserAgentHeader   = 'User-Agent';
 	/**
 	 * raw options for curl request incase you need to tinker to get working in
 	 * your environment. Try to keep them safe!
@@ -18,6 +20,8 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 	private static $curl_headers = [
 
 	];
+	/** @var string user agent to send with requests */
+	private static $user_agent = 'Delectus-{module} {version}';
 
 	/**
 	 * Name of openssl encryption algorythm to use to encrypt/decrypt request and response data (set to empty to not encrypt data)
@@ -32,6 +36,15 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 	 * @var bool
 	 */
 	private static $tokens_in_url = false;
+
+
+	/** @var \DelectusModule  */
+	protected $module;
+
+	public function __construct(DelectusModule $module) {
+		$this->module = $module;
+		parent::__construct();
+	}
 
 	/**
 	 * Make request to a Delectus endpoint/action passing any data.
@@ -54,42 +67,58 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 			$request->write();
 		}
 
-		$url = static::endpoint( $request->Endpoint, $request->Action );
+		$url = $this->endpoint( $request->Endpoint, $request->Action );
 
-		$data    = array_merge(
-			$request->toMap(),
-			$data
-		);
-		$headers = [
-			self::RequestTokenHeader => $request->RequestToken,
-		];
+		if ( static::tokens_in_url() ) {
+			// pass auth and other tokens on query string
+
+			if ( 'https' != strtolower( parse_url( $url, PHP_URL_SCHEME ) ) ) {
+				if ( Director::isLive() ) {
+					throw new Exception( "In live mode I Can't pass tokens in URL if not https url" );
+				}
+			}
+
+			$url .= '?' . self::AuthTokenParameter . '=' . static::authToken()
+			        . '&' . self::SiteIdentifierParameter . '=' . static::siteToken()
+			        . '&' . self::RequestTokenParameter . '=' . $request->RequestToken;
+		}
 
 		try {
-			if ( DelectusModule::tokens_in_url() ) {
-				// pass auth and other tokens on query string
+			$ch = curl_init();
 
-				if ( 'https' != strtolower( parse_url( $url, PHP_URL_SCHEME ) ) ) {
-					if ( Director::isLive() ) {
-						throw new Exception( "In live mode I Can't pass tokens in URL if not https url" );
-					}
-				}
+			// data is always encrypted/encoded
+			$data = $this->encrypt(
+				$this->encode(
+					array_merge(
+						$request->toMap(),
+						$data
+					)
+				)
+			);
 
-				$url .= '?' . self::AuthTokenParameter . '=' . static::auth_token()
-				        . '&' . self::SiteIdentifierParameter . '=' . static::site_token()
-				        . '&' . self::RequestTokenParameter . '=' . $request->RequestToken;
-			}
-			$ch = curl_init( $url );
+			// add encrypted, encoded data and URL
+			$options = $this->curlOptions(
+				$data,
+				[
+					CURLOPT_URL => $url,
+				]
+			);
 
-			curl_setopt_array( $ch, $data = static::curl_options( $data ) );
-			curl_setopt_array( $ch, $headers = static::curl_headers( $headers ) );
+			// add headers
+			$headers = [
+				CURLOPT_HEADER => $this->curlHeaders( [
+					self::RequestTokenHeader => $request->RequestToken,
+				] ),
+			];
 
-			if ( Director::isDev() ) {
-				$request->Headers = json_encode( $headers );
-				$request->Data    = json_encode( $data );
-			} else {
-				$request->Headers = static::encode_data( $headers );
-				$request->Data    = static::encode_data( $data );
-			}
+			curl_setopt_array( $ch, $options );
+			curl_setopt_array( $ch, $headers );
+
+			// add encoded/encrypted headers
+			$request->Headers = $this->encrypt( $this->encode( $headers ) );
+			// data should already be encoded/encrypted
+			$request->Data = $data;
+
 			$request->Mode   = ( Director::isLive() ? 'live' : ( Director::isTest() ? 'test' : 'dev' ) );
 			$request->Status = $request::StatusSending;
 
@@ -117,13 +146,17 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 				throw new Exception( "Failed response code: $responseCode", $responseCode );
 			}
 			$contentType = curl_getinfo( $ch, CURLINFO_CONTENT_TYPE );
-			if ( $contentType != 'application/json' ) {
+			if ( $contentType != $this->contentType() ) {
 				$request->Status  = $request::StatusCompleted;
 				$request->Outcome = $request::OutcomeFailure;
 
 				throw new Exception( "Bad content type: $contentType", $responseCode );
 			}
-			$response = static::decode_data( $response, $contentType );
+			// responses are unencrypted so dont try and decrypt pass '' as password
+			$response = $this->decode(
+				$this->decrypt( $response, '' ),
+				$contentType
+			);
 
 			$request->ResultMessage = isset( $response['message'] )
 				? $response['message']
@@ -147,18 +180,16 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 
 	/**
 	 * Build options for curl to use in curl_setopt_array. If data is provided then the options will specify
-	 * a post request with data encoded in the body, otherwise a GET request will be made.
+	 * a post request with data in the body, otherwise a GET request will be made.
 	 *
-	 * @param array $data    to send with request
+	 * @param array $data    to send with request, should be pre-encoded/encrypted etc
 	 * @param array $options additional options to merge into configured curl_options
 	 *
 	 * @return array
 	 * @throws \Exception
 	 * @throws \InvalidArgumentException
 	 */
-	protected static function curl_options( $data = [], $options = [] ) {
-		$data = static::encode_data( $data );
-
+	protected function curlOptions( $data = [], $options = [] ) {
 		$options = array_merge(
 			static::config()->get( 'curl_options' ),
 			$options
@@ -178,29 +209,23 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 	 *
 	 * @param array $headers additional headers, not an associative array but just values e.g.  'HeaderName: Value'
 	 *
-	 * @return array with header strings keyed off CURLOPT_HEADER ready to merge into curl options
+	 * @return array of headers, needs to be added to option with CURLOPT_HEADER key
 	 * @throws \Exception
 	 * @throws \InvalidArgumentException
 	 */
-	protected static function curl_headers( $headers = [] ) {
+	protected function curlHeaders( $headers = [] ) {
 		$headers = array_merge(
-			static::config()->get( 'curl_headers' ) ?: [],
+			$this->config()->get( 'curl_headers' ) ?: [],
 			[
-				self::ContentTypeHeader . ': ' . self::ContentType,
-				'User-Agent: ' . _t(
-					'Delectus.UserAgentString',
-					static::UserAgentString,
-					[
-						'version' => DelectusModule::version(),
-						'module'  => DelectusModule::module_name(),
-					]
-				),
+				static::ContentTypeHeader => $this->contentType(),      // from encoder
+				static::AcceptTypeHeader  => $this->acceptType(),       // from decoder
+				static::UserAgentHeader   => $this->userAgent(),
 			],
-			static::config()->get( 'tokens_in_url' )
+			$this->config()->get( 'tokens_in_url' )
 				? []
 				: [
-				self::AuthTokenHeader . ': ' . static::auth_token(),
-				self::SiteIdentifierHeader . ': ' . static::site_token(),
+				static::AuthTokenHeader      => $this->authToken(),
+				static::SiteIdentifierHeader => $this->siteToken(),
 			],
 			$headers
 		);
@@ -216,9 +241,65 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 			$headers
 		);
 
-		return [
-			CURLOPT_HEADER => $headers,
-		];
+		return $headers;
+	}
+
+	/**
+	 * Build a url from the endpoint for the action from config, the version, the site token and the action,
+	 * e.g. 'https://api.delectus.io/<version>/add'
+	 *
+	 * @param string $endpoint one of the EndpointABC constants
+	 * @param string $action   one of the ActionABC constants
+	 *
+	 * @return string
+	 * @throws \InvalidArgumentException
+	 */
+	protected function endpoint( $endpoint, $action ) {
+		return Controller::join_links(
+			static::config()->get( 'endpoints' )[ $endpoint ],
+			$this->module->version(),
+			$action
+		);
+	}
+
+	/**
+	 * Return authentication token suitable for passing as an HTTP header or on a url,
+	 * made from the ClientToken or config.client_token
+	 *
+	 * @return string
+	 * @throws \Exception
+	 * @throws \InvalidArgumentException
+	 */
+	protected function authToken() {
+		return $this->encrypt(
+			DelectusModule::client_token(),
+			DelectusModule::client_salt()
+		);
+	}
+
+	/**
+	 * Return site identifier token suitable for passing as an HTTP header or on a url
+	 *
+	 * @return string
+	 * @throws \Exception
+	 * @throws \InvalidArgumentException
+	 */
+	protected function siteToken() {
+		return $this->encrypt(
+			DelectusModule::site_identifier(),
+			DelectusModule::client_salt()
+		);
+	}
+
+	protected function userAgent() {
+		return _t(
+			'Delectus.UserAgent',
+			$this->config()->get( 'user_agent' ),
+			[
+				'version' => $this->module->version(),
+				'module'  => $this->module->module_name()
+			]
+		);
 	}
 
 	/**
@@ -228,7 +309,7 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 	 *
 	 * @return mixed
 	 */
-	protected static function package_item_info( $item ) {
+	public static function package_item_info( $item ) {
 		if ( $item instanceof DataObject ) {
 			$info = [
 				'Type' => 'Model',
@@ -254,130 +335,27 @@ class DelectusCURLTransport extends \Object implements DelectusHTTPTransportInte
 		return $info;
 	}
 
-	protected function unpackage_item_info( $itemInfo ) {
+	public static function unpackage_item_info( $itemInfo ) {
 		return $itemInfo['Data'];
 	}
 
 	/**
-	 * Build a url from the endpoint for the action from config, the version, the site token and the action,
-	 * e.g. 'https://api.delectus.io/<version>/add'
-	 *
-	 * @param string $endpoint one of the EndpointABC constants
-	 * @param string $action   one of the ActionABC constants
+	 * Return client token from SiteConfig or this module config.
 	 *
 	 * @return string
 	 * @throws \InvalidArgumentException
 	 */
-	protected static function endpoint( $endpoint, $action ) {
-		return Controller::join_links(
-			static::config()->get( 'endpoints' )[ $endpoint ],
-			static::version(),
-			$action
-		);
-	}
+	public static function tokens_in_url() {
+		static $tokensInURL;
+		if ( is_null( $tokensInURL ) ) {
+			$siteConfig = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::TokensInURLFieldName};
+			$tokensInURL = is_null($siteConfig)
+				? static::config()->get( 'tokens_in_url' )
+				: $siteConfig;
 
-	protected static function version() {
-		return DelectusModule::version();
-	}
-
-	/**
-	 * Return authentication token suitable for passing as an HTTP header or on a url,
-	 * made from the ClientToken or config.client_token
-	 *
-	 * @return string
-	 * @throws \Exception
-	 * @throws \InvalidArgumentException
-	 */
-	protected static function auth_token() {
-		return base64_encode(
-			static::encrypt_data(
-				DelectusModule::client_token(),
-				DelectusModule::client_salt()
-			)
-		);
-	}
-
-	/**
-	 * Return site identifier token suitable for passing as an HTTP header or on a url
-	 *
-	 * @return string
-	 * @throws \Exception
-	 * @throws \InvalidArgumentException
-	 */
-	protected static function site_token() {
-		return base64_encode(
-			static::encrypt_data(
-				DelectusModule::site_identifier(),
-				DelectusModule::client_salt()
-			)
-		);
-	}
-
-	/**
-	 * Encrypt data using password, e.g. ClientSalt and then base64_encode it
-	 *
-	 * @param string $data must already converted to a string, e.g. via json_encode
-	 * @param string $password
-	 *
-	 * @return string
-	 * @throws \Exception
-	 */
-	public static function encrypt_data( $data, $password ) {
-		if ( $algorythm = static::config()->get( 'encryption_algorythm' ) ) {
-			$data = base64_encode( openssl_encrypt( $data, $algorythm, $password ) );
 		}
 
-		return DelectusModule::generate_token() . $data;
-	}
-
-	/**
-	 * Decrypt data using password, e.g. ClientSalt after base64_decoding it first
-	 *
-	 * @param string $data
-	 * @param string $password
-	 *
-	 * @return string
-	 */
-	public static function decrypt_data( $data, $password ) {
-		if ( $algorythm = static::config()->get( 'encryption_algorythm' ) ) {
-			$data = substr(
-				openssl_decrypt(
-					base64_decode( $data ),
-					$algorythm,
-					$password
-				),
-				DelectusModule::TokenLength
-			);
-		}
-
-		return $data;
-	}
-
-	/**
-	 * Encode data for transport, currently only json encoding is supported
-	 *
-	 * @param mixed  $data
-	 * @param string $contentType not used at the moment
-	 *
-	 * @return string
-	 * @throws \Exception
-	 * @throws \InvalidArgumentException
-	 */
-	public static function encode_data( $data, $contentType = self::ContentType ) {
-		return static::encrypt_data( json_encode( $data ), DelectusModule::client_salt() );
-	}
-
-	/**
-	 * Decode data from transport, currently only json encoding is supported, may encrypt it
-	 *
-	 * @param mixed  $data
-	 * @param string $contentType not used at the moment
-	 *
-	 * @return mixed
-	 * @throws \InvalidArgumentException
-	 */
-	public static function decode_data( $data, $contentType = self::ContentType ) {
-		return json_decode( static::decrypt_data( $data, DelectusModule::client_salt() ), true );
+		return $tokensInURL;
 	}
 
 }

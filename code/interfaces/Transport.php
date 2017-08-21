@@ -9,7 +9,11 @@ interface DelectusTransportInterface {
 	 */
 	public function makeRequest( DelectusApiRequestModel $request, $data = [] );
 
-	public static function decrypt_data($data, $salt);
+	public function decrypt($data, $password);
 
-	public static function encrypt_data($data, $salt);
+	public function encrypt($data, $password);
+
+	public function encode($data, $contentType);
+
+	public function decode($data, $contentType);
 }

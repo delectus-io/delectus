@@ -72,7 +72,7 @@ class DelectusSiteConfigExtension extends DataExtension {
 					'Delectus.EncryptionAlgorythmLabel',
 					'Request Data Encryption Method'
 				),
-				DelectusModule::encryption_options() )
+				DelectusModule::encryption_algorythm() )
 				->setRightTitle( _t( 'Delectus.EncryptionAlgorythmDescription', "How to encrypt data in requests, only choose No Encryption if over ssl or local testing!" ) )
 				->setEmptyString( 'No encryption (not advised)' )
 

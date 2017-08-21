@@ -15,9 +15,6 @@ class DelectusModule extends \Object {
 
 	private static $admin_tab_name = 'Root.Admin';
 
-	// list of openssl supported algorythm names we are supporting
-	private static $encryption_algorythms = [];
-
 	/**
 	 * Set to the client token you have been allocated, used to communicate with the delectus service
 	 *
@@ -83,8 +80,17 @@ class DelectusModule extends \Object {
 		return static::config()->get( 'admin_tab_name' );
 	}
 
-	public static function encryption_options() {
-		return static::config()->get('encryption_algorythms') ?: [];
+	/**
+	 * return the encryption algorythm configured in SiteConfig or null
+	 *
+	 * @return string
+	 */
+	public static function encryption_algorythm() {
+		static $algorythm;
+		if ( is_null( $algorythm ) ) {
+			$algorythm = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::EncryptionAlgorythmFieldName};
+		}
+		return $algorythm;
 	}
 
 	/**
@@ -110,28 +116,11 @@ class DelectusModule extends \Object {
 	 * @return string
 	 * @throws \InvalidArgumentException
 	 */
-	public static function tokens_in_url() {
-		static $tokensInURL;
-		if ( is_null( $tokensInURL ) ) {
-			$tokensInURL = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::TokensInURLFieldName}
-				?: self::config()->get( 'tokens_in_rul' );
-
-		}
-
-		return $tokensInURL;
-	}
-
-	/**
-	 * Return client token from SiteConfig or this module config.
-	 *
-	 * @return string
-	 * @throws \InvalidArgumentException
-	 */
 	public static function client_token() {
 		static $clientToken;
 		if ( is_null( $clientToken ) ) {
 			$clientToken = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::ClientTokenFieldName}
-				?: self::config()->get( 'client_token' );
+				?: static::config()->get( 'client_token' );
 
 		}
 
@@ -148,7 +137,7 @@ class DelectusModule extends \Object {
 		static $salt;
 		if ( is_null( $salt ) ) {
 			$salt = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::ClientSaltFieldName}
-				?: self::config()->get( 'client_salt' );
+				?: static::config()->get( 'client_salt' );
 		}
 
 		return $salt;
@@ -164,7 +153,7 @@ class DelectusModule extends \Object {
 		static $secret;
 		if ( is_null( $secret ) ) {
 			$secret = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::ClientSecretFieldName}
-				?: self::config()->get( 'client_secret' );
+				?: static::config()->get( 'client_secret' );
 		}
 
 		return $secret;
@@ -181,7 +170,7 @@ class DelectusModule extends \Object {
 
 		if ( is_null( $siteID ) ) {
 			$siteID = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::SiteIdentifierFieldName}
-				?: self::config()->get( 'site_identifier' );
+				?: static::config()->get( 'site_identifier' );
 		}
 
 		return $siteID;
@@ -193,7 +182,7 @@ class DelectusModule extends \Object {
 	 * @return string
 	 */
 	public static function version() {
-		return self::config()->get( 'version' );
+		return static::config()->get( 'version' );
 	}
 
 	public static function module_name() {

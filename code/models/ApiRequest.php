@@ -127,6 +127,7 @@ class DelectusApiRequestModel extends DelectusModel {
 		if ( $this->isChanged( 'Status' ) ) {
 			$this->LastStatusDate = date( 'Y-m-d H:i:s' );
 		}
+		parent::onBeforeWrite();
 	}
 
 }
