@@ -1,11 +1,10 @@
 <?php
 
 interface DelectusHTTPTransportInterface extends DelectusTransportInterface {
-	// content type we send and receive fromt he Delectus service
-	const ContentType = 'application/json';
-
 	// keys so these can be changed in config, not used to generate the headers
-	const ContentTypeHeader = 'ContentType';
+	const AcceptTypeHeader  = 'Accept-Type';
+	const ContentTypeHeader = 'Content-Type';
+	const UserAgentHeader   = 'User-Agent';
 
 	const ClientTokenParameter = 'ct';
 	const ClientTokenFieldName = 'X-Client-Token';

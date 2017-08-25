@@ -1,9 +1,6 @@
 <?php
 
 class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTransportInterface {
-	const AcceptTypeHeader  = 'Accept-Type';
-	const ContentTypeHeader = 'Content-Type';
-	const UserAgentHeader   = 'User-Agent';
 	/**
 	 * raw options for curl request incase you need to tinker to get working in
 	 * your environment. Try to keep them safe!
@@ -37,11 +34,10 @@ class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTra
 	 */
 	private static $tokens_in_url = false;
 
-
-	/** @var \DelectusModule  */
+	/** @var \DelectusModule */
 	protected $module;
 
-	public function __construct(DelectusModule $module) {
+	public function __construct( DelectusModule $module ) {
 		$this->module = $module;
 		parent::__construct();
 	}
@@ -52,66 +48,54 @@ class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTra
 	 * If config.tokens_in_url are specified will also add 'at' param to querystring for the auth token.
 	 *
 	 * @param DelectusApiRequestModel $request incoming request parameters, updated to reflect results. written to database.
-	 * @param array                   $data    optional data to add to request payload
 	 *
-	 * @return mixed
+	 * @param                         $resultCode
+	 * @param                         $resultMessage
+	 *
+	 * @return bool
 	 * @throws \Exception
 	 * @throws \InvalidArgumentException
+	 * @throws \ValidationException
+	 * @internal param array $data optional data to add to request payload
 	 */
-	public function makeRequest( DelectusApiRequestModel $request, $data = [] ) {
+	public function makeRequest( DelectusApiRequestModel $request, &$resultCode, &$resultMessage) {
 		$ch       = null;
 		$response = null;
 
-		// make sure request is fully initialised
-		if ( ! $request->isInDB() ) {
-			$request->write();
-		}
-
-		$url = $this->endpoint( $request->Endpoint, $request->Action );
-
-		if ( static::tokens_in_url() ) {
-			// pass auth and other tokens on query string
-
-			if ( 'https' != strtolower( parse_url( $url, PHP_URL_SCHEME ) ) ) {
-				if ( Director::isLive() ) {
-					throw new Exception( "In live mode I Can't pass tokens in URL if not https url" );
-				}
-			}
-
-			$url .= '?' . self::AuthTokenParameter . '=' . static::authToken()
-			        . '&' . self::SiteIdentifierParameter . '=' . static::siteToken()
-			        . '&' . self::RequestTokenParameter . '=' . $request->RequestToken;
-		}
+		$resultCode = null;
+		$resultMessage = null;
 
 		try {
-			$ch = curl_init();
+
+
+			// make sure request is fully initialised
+			if ( ! $request->isInDB() ) {
+				$request->write();
+			}
+
+			$url = $this->endpoint( $request->Endpoint, $request->Action );
+
+			if ( static::tokens_in_url() ) {
+				// add tokens to the url
+				$url = $this->tokeniseURL( $url, $request );
+			}
+
+			$ch = curl_init( $url );
 
 			// data is always encrypted/encoded
 			$data = $this->encrypt(
-				$this->encode(
-					array_merge(
-						$request->toMap(),
-						$data
-					)
-				)
+				$this->encode($request->toMap())
 			);
+			// set options with data and merged defaults
+			$options = $this->curlOptions( $data );
+			curl_setopt_array( $ch, $options );
 
-			// add encrypted, encoded data and URL
-			$options = $this->curlOptions(
-				$data,
-				[
-					CURLOPT_URL => $url,
-				]
-			);
-
-			// add headers
+			// add headers (unencrypted, salt is not being sent)
 			$headers = [
 				CURLOPT_HEADER => $this->curlHeaders( [
 					self::RequestTokenHeader => $request->RequestToken,
 				] ),
 			];
-
-			curl_setopt_array( $ch, $options );
 			curl_setopt_array( $ch, $headers );
 
 			// add encoded/encrypted headers
@@ -124,58 +108,67 @@ class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTra
 
 			$request->write();
 
-			$request->RequestStartMS = microtime( true );
+			$request->RequestStart = microtime( true );
 
 			$response = curl_exec( $ch );
 
-			$request->RequestEndMS = microtime( true );
+			$request->RequestEnd = microtime( true );
+
+			$resultCode = curl_getinfo( $ch, CURLINFO_RESPONSE_CODE );
 
 			if ( $response === false ) {
-				$request->Status  = $request::StatusFailed;
-				$request->Outcome = $request::OutcomeFailure;
+				$request->Status        = $request::StatusFailed;
+				$request->Outcome       = $request::OutcomeFailure;
 
-				throw new Exception( "Error: " . curl_error( $ch ) );
+				$resultMessage = curl_error( $ch );
+			} else {
+
+				if ( ! fnmatch( '2??', $resultCode ) ) {
+					// not a 200 response, fail
+					$request->Status        = $request::StatusCompleted;
+					$request->Outcome       = $request::OutcomeFailure;
+
+					$resultMessage = curl_error( $ch ) ?: "Result Code $resultCode";
+
+				} else {
+
+					$contentType = curl_getinfo( $ch, CURLINFO_CONTENT_TYPE );
+					if ( $contentType != $this->contentType() ) {
+						$request->Status        = $request::StatusCompleted;
+						$request->Outcome       = $request::OutcomeFailure;
+
+						$resultMessage = "Bad content type '$contentType'";
+					} else {
+
+						$response = $this->decode(
+							$this->decrypt( $response, '' ),
+							$contentType
+						);
+
+					}
+				}
 			}
-			$responseCode        = curl_getinfo( $ch, CURLINFO_RESPONSE_CODE );
-			$request->ResultCode = $responseCode;
 
-			if ( $responseCode != 200 ) {
-				$request->Status  = $request::StatusCompleted;
-				$request->Outcome = $request::OutcomeFailure;
+		} catch (Exception $e) {
+			$resultCode = $e->getCode();
+			$resultMessage = $e->getMessage();
 
-				throw new Exception( "Failed response code: $responseCode", $responseCode );
-			}
-			$contentType = curl_getinfo( $ch, CURLINFO_CONTENT_TYPE );
-			if ( $contentType != $this->contentType() ) {
-				$request->Status  = $request::StatusCompleted;
-				$request->Outcome = $request::OutcomeFailure;
-
-				throw new Exception( "Bad content type: $contentType", $responseCode );
-			}
-			// responses are unencrypted so dont try and decrypt pass '' as password
-			$response = $this->decode(
-				$this->decrypt( $response, '' ),
-				$contentType
-			);
-
-			$request->ResultMessage = isset( $response['message'] )
-				? $response['message']
-				: _t(
-					'Delectus.UnknownErrorMessage',
-					'Unknown Error'
-				);
-
-		} catch ( Exception $e ) {
-			$request->ResultCode    = $e->getCode();
-			$request->ResultMessage = $e->getMessage();
-		} finally {
-			if ( $ch ) {
-				curl_close( $ch );
-			}
 		}
+		$request->ResultCode = $resultCode;
+		$request->ResultMessage = $resultMessage;
 		$request->write();
 
-		return $response;
+		return $response ?: null;
+	}
+
+	/**
+	 * Check if the raw result form a request is OK, i.e. for curl falsish is no, otherwise yes
+	 * @param $result
+	 *
+	 * @return bool false if not, true if it is
+	 */
+	public function isOK($result) {
+		return (bool)$result;
 	}
 
 	/**
@@ -245,6 +238,31 @@ class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTra
 	}
 
 	/**
+	 * Add tokens to URL
+	 * @param                          $url
+	 * @param \DelectusApiRequestModel $request
+	 *
+	 * @return string
+	 * @throws \Exception
+	 * @throws \InvalidArgumentException
+	 */
+	protected function tokeniseURL($url, DelectusApiRequestModel $request) {
+		// pass auth and other tokens on query string
+
+		if ( 'https' != strtolower( parse_url( $url, PHP_URL_SCHEME ) ) ) {
+			if ( Director::isLive() ) {
+				throw new Exception( "In live mode I Can't pass tokens in URL if not https url" );
+			}
+		}
+
+		$url .= '?' . self::AuthTokenParameter . '=' . $this->authToken()
+		        . '&' . self::SiteIdentifierParameter . '=' . $this->siteToken()
+		        . '&' . self::RequestTokenParameter . '=' . $request->RequestToken;
+
+		return $url;
+	}
+
+	/**
 	 * Build a url from the endpoint for the action from config, the version, the site token and the action,
 	 * e.g. 'https://api.delectus.io/<version>/add'
 	 *
@@ -297,7 +315,7 @@ class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTra
 			$this->config()->get( 'user_agent' ),
 			[
 				'version' => $this->module->version(),
-				'module'  => $this->module->module_name()
+				'module'  => $this->module->module_name(),
 			]
 		);
 	}
@@ -348,8 +366,8 @@ class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTra
 	public static function tokens_in_url() {
 		static $tokensInURL;
 		if ( is_null( $tokensInURL ) ) {
-			$siteConfig = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::TokensInURLFieldName};
-			$tokensInURL = is_null($siteConfig)
+			$siteConfig  = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::TokensInURLFieldName};
+			$tokensInURL = is_null( $siteConfig )
 				? static::config()->get( 'tokens_in_url' )
 				: $siteConfig;
 

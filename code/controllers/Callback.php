@@ -4,7 +4,7 @@
  * Base class for controllers which handle callbacks from delectus services into
  * a client site.
  */
-abstract class DelectusCallbackController extends Controller {
+abstract class DelectusCallbackController extends \DelectusApiRequestController {
 
 	/**
 	 * Check authentication and site tokens from request against the current site tokens configured

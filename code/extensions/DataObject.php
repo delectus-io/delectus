@@ -20,12 +20,19 @@ abstract class DelectusDataObjectExtension extends DataExtension {
 	// set to false to disable Delectus functions at runtime, e.g. during testing other functionality
 	private static $delectus_enabled = true;
 
+	public function modelTokenFieldName() {
+		return static::ModelTokenFieldName;
+	}
+
 	public function onBeforeWrite() {
 		if ( $this->owner->isInDB() ) {
 			if ( $this->owner->isChanged( self::StatusFieldName ) ) {
 				$this->owner->{self::UpdatedDateFieldName} = date( 'Y-m-d H:i:s' );
 			}
-			$this->owner->{self::ModelTokenFieldName} = DelectusModule::generate_token();
+		}
+		$modelTokenFieldName = $this->owner->modelTokenFieldName();
+		if ( !$this->owner->{$modelTokenFieldName}) {
+			$this->owner->{$modelTokenFieldName} = DelectusModule::generate_token();
 		}
 	}
 
@@ -35,7 +42,7 @@ abstract class DelectusDataObjectExtension extends DataExtension {
 			$fields->addFieldToTab(
 				DelectusModule::cms_tab_name(),
 				$field = new TextField(
-					static::ModelTokenFieldName,
+					$this->owner->modelTokenFieldName(),
 					_t(
 						'Delectus.ModelTokenLabel',
 						"Delectus Token"

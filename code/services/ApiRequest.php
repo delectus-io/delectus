@@ -1,4 +1,5 @@
 <?php
+
 use DelectusException as Exception;
 
 /**
@@ -11,44 +12,94 @@ class DelectusApiRequestService extends \Object {
 	// passed to Injector to create the transport
 	const TransportName = 'DelectusTransport';
 
+	// set in derived service class to response class name, e.g. 'DelectusIndexResponse'
+	const SuccessResponseClassName = '';
+
+	const ErrorResponseClassName = DelectusErrorResponse::class;
+
 	// how far into the future the queued job should run ('now' for send immediately)
 	private static $queue_delay = '+1 mins';
 
+	// log file path relative to site root, '../' allowed. If not set then just default log settings will be used.
+	private static $log_path = '';
+
+	// log file name to create in path, if not set then the concrete class name will be used + '.log'
+	private static $log_name = '';
+
+	// logging equal to or 'worse' than this level
+	private static $log_level = SS_Log::WARN;
+
 	/**
 	 * May be set by Injector, if not the Injector used to create a DelectusTransport
+	 *
 	 * @var \DelectusTransportInterface
 	 */
 	protected $transport;
 
 	/**
-	 * Called by injector to set transport property.
-	 * @param \DelectusTransportInterface $transport
+	 * @var \DelectusModule
 	 */
-	public function setTransport(DelectusTransportInterface $transport) {
-		$this->transport = $transport;
+	protected $module;
+
+	/**
+	 * Set the module which 'owns' this request service for customisation of service calls and transport.
+	 *
+	 * @param \DelectusModule $module
+	 *
+	 * @return $this
+	 */
+	public function setModule( DelectusModule $module ) {
+		$this->module = $module;
+
+		return $this;
 	}
 
 	/**
-	 * Return transport set by DI or created by Injector explicitly
-	 * @return mixed
+	 * Return the module (generally set by DI)
+	 *
+	 * @return \DelectusModule
+	 */
+	public function getModule() {
+		return $this->module;
+	}
+
+	/**
+	 * Called by injector to set transport property.
+	 *
+	 * @param \DelectusTransportInterface $transport
+	 *
+	 * @return $this
+	 */
+	public function setTransport( DelectusTransportInterface $transport ) {
+		$this->transport = $transport;
+
+		return $this;
+	}
+
+	/**
+	 * Return transport set by DI or created by Injector explicitly (required module to have been set)
+	 *
+	 * @return \DelectusTransportInterface
 	 */
 	public function getTransport() {
-		if (!$this->transport) {
-			$this->transport = \Injector::inst()->get( self::TransportName );
+		if ( ! $this->transport ) {
+			$this->transport = \Injector::inst()->create( self::TransportName, $this->getModule() );
 		}
+
 		return $this->transport;
 	}
 
 	/**
-	 * @param \DelectusApiRequestModel $request
-	 * @param bool                     $immediate send now, overrides config.send_immediate, otherwise will queue
+	 * Either queues or sends the request immediately depending on the RunEpoch being later or equal to or before now.
 	 *
-	 * @return bool|int|mixed
-	 * @throws \DelectusException
+	 * @param \DelectusApiRequestModel $request
+	 *
+	 * @return \DelectusResponse|null
+	 * @throws \Exception
 	 * @throws \InvalidArgumentException
 	 * @throws \ValidationException
 	 */
-	public function makeRequest( DelectusApiRequestModel $request, $immediate = false ) {
+	public function makeRequest( DelectusApiRequestModel $request ) {
 		$request->Endpoint       = static::Endpoint;
 		$request->ClientToken    = DelectusModule::client_token();
 		$request->Version        = DelectusModule::version();
@@ -56,8 +107,38 @@ class DelectusApiRequestService extends \Object {
 		$request->ResultCode     = 0;
 		$request->ResultMessage  = null;
 
+		$logWriter = null;
+
+		if ( $logPath = $this->config()->get( 'log_path' ) ) {
+			if ($logPath = realpath(Controller::join_links( BASE_PATH, $logPath))) {
+				$logName = $this->config()->get( 'log_name' ) ?: ( static::class . '.log' );
+
+				$logPathName = Controller::join_links($logPath, $logName);
+
+				// set to config.log_level if set, otherwise DEBUG if in dev mode, or WARN otherwise
+				$logLevel = $this->config()->get('log_level') ?: ( Director::isDev() ? SS_Log::DEBUG : SS_Log::WARN );
+
+				SS_Log::add_writer( $logWriter = new SS_LogFileWriter( $logPathName ), $logLevel, '>=' );
+			}
+		}
+
+		SS_Log::log( __METHOD__, SS_Log::DEBUG );
+
+		$immediate = $request->RunEpoch
+			? $request->RunEpoch <= time()
+			: false;
+
 		if ( $immediate || $this->config()->get( 'send_immediate' ) ) {
-			$result = $this->sendRequest( $request, $resultMessage );
+			$request->RunEpoch = time();
+
+			$result = $this->sendRequest( $request );
+
+			if ( $result->isOK() ) {
+				$result = $this->handleSuccess( $result );
+			} else {
+				$result = $this->handleError( $result );
+			}
+
 		} else {
 			if ( $result = $this->queueRequest( $request ) ) {
 				$resultMessage = _t(
@@ -77,11 +158,15 @@ class DelectusApiRequestService extends \Object {
 					]
 				);
 			}
+			$request->ResultMessage = $resultMessage;
 		}
-		$request->ResultMessage = $resultMessage;
 		$request->write();
 
-		return $result;
+		if ( $logWriter ) {
+			SS_Log::remove_writer( $logWriter );
+		}
+
+		return $result ?: null;
 	}
 
 	/**
@@ -93,13 +178,21 @@ class DelectusApiRequestService extends \Object {
 	 * @return int
 	 */
 	protected function queueRequest( DelectusApiRequestModel $request ) {
-		$queueService = singleton('QueuedJobService');
+		SS_Log::log( __METHOD__, SS_Log::DEBUG );
+
+		$queueService = singleton( 'QueuedJobService' );
 
 		$job = new DelectusIndexJob( $request );
 
+		if ( $request->RunEpoch ) {
+			$runWhen = date( 'Y-m-d H:i:s', $request->RunEpoch );
+		} else {
+			$runWhen = date( 'Y-m-d H:i:s', strtotime( static::config()->get( 'queued_delay' ) ) );
+		}
+
 		$jobID = $queueService->queueJob(
 			$job,
-			date( 'Y-m-d H:i:s', strtotime( static::config()->get( 'queued_delay' ) ) ),
+			$runWhen,
 			null,
 			'Delectus'
 		);
@@ -115,68 +208,129 @@ class DelectusApiRequestService extends \Object {
 	}
 
 	/**
-	 * Make the requst direct to delectus service, updates $request but doesn't write it.
+	 * Make the request immediately to delectus service, updates $request with outcome
 	 *
 	 * @param \DelectusApiRequestModel $request
-	 * @param string                   $resultMessage
 	 *
-	 * @return bool|mixed
-	 * @throws \DelectusException
+	 * @return \DelectusResponse
+	 * @throws \Exception
 	 * @throws \ValidationException
 	 */
-	protected function sendRequest( DelectusApiRequestModel $request, &$resultMessage = '' ) {
-		$result = null;
-		if ( $model = $request->getModel() ) {
-			$request->Status = $request::StatusSending;
-			$request->write();
+	protected function sendRequest( DelectusApiRequestModel $request ) {
+		SS_Log::log( __METHOD__, SS_Log::DEBUG );
 
-			try {
+		$result = null;
+
+		$resultCode    = 0;
+		$resultMessage = '';
+
+		$errorResponseClassName   = static::ErrorResponseClassName;
+		$successResponseClassName = static::SuccessResponseClassName;
+
+		try {
+			if ( $model = $request->getModel() ) {
+				$request->Status = $request::StatusSending;
+				$request->write();
+
+				/** @var \DelectusTransportInterface $transport */
 				$transport = $this->getTransport();
 
-				$result = $transport->makeRequest( $request );
+				$result = $transport->makeRequest( $request, $resultCode, $resultMessage );
 
-				if ( $result ) {
-					$request->Status = $request::StatusSent;
+				$request->Status = $request::StatusCompleted;
+
+				if ( $transport->isOK( $result ) ) {
+					$response         = new $successResponseClassName( $result, $resultCode, $resultMessage );
+					$request->Outcome = $request::OutcomeSuccess;
 				} else {
-					$request->Status = $request::StatusFailed;
+					$response         = new $errorResponseClassName( $result, $resultCode, $resultMessage );
+					$request->Outcome = $request::OutcomeFailure;
 				}
 
-			} catch ( Exception $e ) {
-				$request->Status        = $request::StatusFailed;
-				$request->ResultMessage = $e->getMessage();
-				$request->ResultCode    = $e->getCode();
+			} else {
+				throw new \Exception( "No such model", $request::StatusFailed );
 			}
-			$request->write();
-		} else {
-			$request->Status        = $request::StatusFailed;
-			$request->ResultMessage = "No such model";
-		}
-		$resultMessage = $request->ResultMessage;
+		} catch ( Exception $e ) {
+			$request->Status  = $request::StatusFailed;
+			$request->Outcome = $request::OutcomeFailure;
 
-		return $result;
+			$response         = new $errorResponseClassName( null, $e->getCode(), $e->getMessage() );
+		}
+
+		$request->ResultMessage = $resultMessage;
+		$request->ResultCode    = $resultCode;
+		$request->write();
+
+		return $response;
 	}
 
 	/**
-	 * Initialise a request object, set the model, write and return it.
+	 * @param \DelectusResponse $response
 	 *
-	 * @param DataObject $model
-	 * @param string     $description of what request does
-	 * @param string     $action
+	 * @return bool true if handled, false otherwise
+	 */
+	protected function handleSuccess( DelectusResponse $response ) {
+		SS_Log::log( __METHOD__, SS_Log::INFO );
+
+		return $response->isOK();
+	}
+
+	/**
+	 * @param \DelectusResponse $response
+	 *
+	 * @return bool true if handled, false otherwise
+	 */
+	protected function handleError( DelectusResponse $response) {
+		SS_Log::log( __METHOD__ . ': ' . $response->getResponseMessage(), SS_Log::WARN );
+
+		return true;
+	}
+
+	/**
+	 * Check to see if the last request made for the model is the same as this one, if so return the last request model,
+	 * otherwise initialise a request object, set the model, write and return it.
+	 *
+	 * @param DataObject|\DelectusDataObjectExtension $model
+	 * @param string                                  $description of what request does
+	 * @param string                                  $action
 	 *
 	 * @return \DelectusApiRequestModel
+	 * @throws \InvalidArgumentException
 	 * @throws \ValidationException
 	 */
-	protected static function log_request( $model, $description, $action ) {
-		$request = new DelectusApiRequestModel( [
-			'Title'  => $description,
-			'Action' => $action,
-			'Link'   => $model->Link(),
-		] );
-		$request->setModel( $model );
+	protected static function enqueue_request( $model, $description, $action ) {
+		/** @var \DelectusApiRequestModel $request */
+		// find the last request for the model
+		$request = DelectusApiRequestModel::get()->filter( [
+			'ModelClass' => $model->ClassName,
+			'ModelID'    => $model->ID,
+		] )->sort( 'LastStatusDate', 'DESC' )->limit( 1 )->first();
+
+		if ( $request ) {
+			// there was a last request, if it is the same action then increment the request count
+			// and the queue handling should pick it up for a retry
+			if ( $request->Action == $action ) {
+				$request->RequestCount ++;
+				$enqueue = false;
+			} else {
+				$enqueue = true;
+			}
+		} else {
+			$enqueue = true;
+		}
+		if ( $enqueue ) {
+
+			$request = new DelectusApiRequestModel( [
+				'Title'        => $description,
+				'Action'       => $action,
+				'Link'         => $model->Link(),
+				'RequestCount' => 1,
+			] );
+			$request->setModel( $model );
+
+		}
 		$request->write();
 
 		return $request;
-
 	}
-
 }

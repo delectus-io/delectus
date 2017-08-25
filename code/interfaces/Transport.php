@@ -2,12 +2,21 @@
 
 interface DelectusTransportInterface {
 	/**
-	 * @param DelectusApiRequestModel $request
-	 * @param array                   $data optional data to add to request payload
+	 * @param DelectusApiRequestModel $request meta data and data to send and will contain result meta data, code, message etc
 	 *
-	 * @return mixed
+	 * @param                         $resultCode
+	 * @param                         $resultMessage
+	 *
+	 * @return mixed data returned, null or false if failed
 	 */
-	public function makeRequest( DelectusApiRequestModel $request, $data = [] );
+	public function makeRequest( DelectusApiRequestModel $request, &$resultCode, &$resultMessage);
+
+	/**
+	 * @param $result
+	 *
+	 * @return bool true if result is 'OK', false otherwise
+	 */
+	public function isOK($result);
 
 	public function decrypt($data, $password);
 

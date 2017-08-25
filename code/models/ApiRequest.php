@@ -6,29 +6,32 @@ use DelectusException as Exception;
  * DelectusApiRequestModel model records requests made to delectus services and is updated by
  * a callback from delectus when the request has been processed.
  *
- * @property string Title
- * @property string RequestToken
- * @property string SiteIdentifier
- * @property string RequestURL
+ * @property string Source               - source of the request, e.g. 'PageExtension.onBeforeDelete'
  * @property string Version
+ * @property string Endpoint            - 'index', 'search'
+ * @property string Action              - 'add', 'remove', 'reindex'
+ * @property string Status              - 'Queued', 'Sending', 'Sent', 'Failed', 'Completed'
+ * @property string Outcome             - 'Waiting', 'Success', 'Failure'
  * @property string ModelClass
  * @property int    ModelID
- * @property string ModelToken
- * @property int    MemberID
- * @property string ClientToken
- * @property string Status
- * @property string Outcome
- * @property string Endpoint
- * @property string Action
- * @property int    ResultCode
- * @property string ResultMessage
+ * @property string ModelToken          - model's token (e.g. for Page or File)
+ * @property string ClientToken         - client token passed in request
+ * @property string SiteIdentifier      - site id passed in request
+ * @property string RequestToken        - unique token for this request
+ * @property string RequestURL          - URL request was made to on remote service
+ * @property int    RequestCount        - requests may double up, keep a count of how many times this was made
+ * @property int    RetryCount          - queue handler should retry until RetryCount >= RequestCount
+ * @property int    RunEpoch            - when this request should run
+ * @property int    MemberID            - who was logged in when request was queued
+ * @property int    ResultCode          - native code, e.g. 200 or 404
+ * @property string ResultMessage       - empty until request has started process, should have description of ResultCode at end
  * @property string Headers             - in dev mode this will have json encoded version of data, encrypted in live mode
  * @property string Data                - in dev mode this will have json encoded version of data, encrypted in live mode
- * @property int    JobID
- * @property string RequestDate
- * @property number RequestStartMS
- * @property number RequestEndMS
- * @property string LastStatusDate
+ * @property int    JobID               - id of Job if this was started via a job
+ * @property string RequestDate         - original date request was made
+ * @property int    RequestStart        - unix time request was physically started
+ * @property int    RequestEnd          - unix time request was physically ended (fail or success or timeout)
+ * @property string LastStatusDate      - last time the status changed
  * @property string Mode                - mode request made in, e.g. 'dev', 'test', 'live'
  *
  * @method Member Member()
@@ -53,13 +56,16 @@ class DelectusApiRequestModel extends DelectusModel {
 
 	// other fields are added by DelectusApiRequestExtension
 	private static $db = [
+		'Source'         => 'Varchar(255)',
 		'Status'         => 'Enum("Queued,Sending,Sent,Failed,Completed")',
-		'Outcome'        => 'Enum("Undetermined,Determining,Success,Failure")',
+		'Outcome'        => 'Enum("Waiting,Success,Failure")',
 		'RunEpoch'       => 'Int',              // time() when the request should be satisfied
+		'RequestCount'   => 'Int',
+		'RetryCount'     => 'Int',
 		'LastStatusDate' => 'SS_DateTime',
 		'RequestDate'    => 'SS_DateTime',
-		'RequestStartMS' => 'Decimal(10,3)',
-		'RequestEndMS'   => 'Decimal(10,3)',
+		'RequestStart'   => 'Int',
+		'RequestEnd'     => 'Int',
 		'Headers'        => 'Text',
 		'Data'           => 'Text',
 	];
@@ -69,15 +75,24 @@ class DelectusApiRequestModel extends DelectusModel {
 	];
 
 	private static $summary_fields = [
-		'Title'         => 'Description',
-		'ModelTitle'    => 'Model Title',
-		'ModelLink'     => 'Model Link',
-		'ModelToken'    => 'Model Token',
-		'Status'        => 'Status',
-		'Outcome'       => 'Outcome',
-		'ResultCode'    => 'Result Code',
-		'ResultMessage' => 'Result Message',
+		'Title'          => 'Description',
+		'ModelTitle'     => 'Model Title',
+		'ModelLink'      => 'Model Link',
+		'ModelToken'     => 'Model Token',
+		'Status'         => 'Status',
+		'LastStatusDate' => 'Last Status Date',
+		'Outcome'        => 'Outcome',
+		'ResultCode'     => 'Result Code',
+		'ResultMessage'  => 'Result Message',
 	];
+
+	/**
+	 * Use Source for the title.
+	 * @return string
+	 */
+	public function getTitle() {
+		return $this->Source;
+	}
 
 	/**
 	 * Return the model from ModelClass and ModelID or null if can't or it doesn't exist in database (anymore)
@@ -91,6 +106,7 @@ class DelectusApiRequestModel extends DelectusModel {
 			$modelClass = $this->ModelClass;
 			$model      = $modelClass::get()->byID( $this->ModelID );
 		}
+
 		return $model;
 	}
 
@@ -110,10 +126,13 @@ class DelectusApiRequestModel extends DelectusModel {
 		}
 	}
 
+	/**
+	 * @param DataObject|\DelectusDataObjectExtension $model
+	 */
 	public function setModel( $model ) {
 		$this->ModelClass = $model->ClassName;
 		$this->ModelID    = $model->ID;
-		$this->ModelToken = $model->{DelectusDataObjectExtension::ModelTokenFieldName};
+		$this->ModelToken = $model->{$model->modelTokenFieldName()};
 	}
 
 	public function onBeforeWrite() {

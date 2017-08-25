@@ -6,7 +6,10 @@
  * backend client-side models.
  */
 class DelectusApiRequestExtension extends DataExtension {
-
+	/**
+	 * Common fields for logging/making a request between delectus services
+	 * @var array
+	 */
 	private static $db = [
 		'RequestToken'    => 'Varchar(255)',
 		'ClientToken'     => 'Varchar(255)',

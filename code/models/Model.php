@@ -11,6 +11,10 @@ use DelectusException as Exception;
 	// name of the token field for this model, e.g. 'DelectusClientToken';
 	const ModelTokenFieldName = '';
 
+	public function modelTokenFieldName() {
+		return static::ModelTokenFieldName;
+	}
+
 	/**
 	 * @param string $token unencrypted token to match on
 	 *
