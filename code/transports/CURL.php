@@ -274,7 +274,7 @@ class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTra
 	 */
 	protected function endpoint( $endpoint, $action ) {
 		return Controller::join_links(
-			static::config()->get( 'endpoints' )[ $endpoint ],
+			$this->module->endpoint($endpoint),
 			$this->module->version(),
 			$action
 		);

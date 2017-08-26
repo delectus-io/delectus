@@ -188,6 +188,18 @@ class DelectusModule extends \Object {
 		return static::config()->get( 'version', Config::UNINHERITED );
 	}
 
+	public static function endpoint($endpoint) {
+		$endpoints = static::endpoints();
+		if (isset($endpoints[$endpoint])) {
+			return $endpoints[$endpoint];
+		}
+		return null;
+	}
+
+	public static function endpoints() {
+		return static::config()->get( 'endpoints', Config::UNINHERITED );
+	}
+
 	public static function module_name() {
 		return static::ModuleName;
 	}
