@@ -127,7 +127,7 @@ class DelectusApiRequestModel extends DelectusModel {
 	}
 
 	/**
-	 * @param DataObject|\DelectusDataObjectExtension $model
+	 * @param DataObject|\DelectusModelExtension $model
 	 */
 	public function setModel( $model ) {
 		$this->ModelClass = $model->ClassName;

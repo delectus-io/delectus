@@ -6,3 +6,9 @@ After:
 SiteConfig:
   extensions:
     - DelectusSiteConfigExtension
+SiteTree:
+  extensions:
+    - DelectusModelExtension
+File:
+  extensions:
+    - DelectusModelExtension
