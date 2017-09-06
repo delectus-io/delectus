@@ -295,9 +295,9 @@ abstract class DelectusApiRequestService extends \Object {
 	 * Check to see if the last request made for the model is the same as this one, if so return the last request model,
 	 * otherwise initialise a request object, set the model, write and return it.
 	 *
-	 * @param DataObject|\DelectusDataObjectExtension $model
-	 * @param string                                  $description of what request does
-	 * @param string                                  $action
+	 * @param DataObject|\DelectusModelExtension $model
+	 * @param string                             $description of what request does
+	 * @param string                             $action
 	 *
 	 * @return \DelectusApiRequestModel
 	 * @throws \InvalidArgumentException

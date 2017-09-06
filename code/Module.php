@@ -55,6 +55,32 @@ class DelectusModule extends \Object {
 	private static $version = 'v1';
 
 	/**
+	 * Pass site and auth tokens on the url when making requests, e.g. if X-Client-Auth and X-Client-Site headers aren't being passed via proxy or some such
+	 *
+	 * @var bool
+	 */
+	private static $tokens_in_url = false;
+
+	/**
+	 * Return client token from SiteConfig or this module config.
+	 *
+	 * @return string
+	 * @throws \InvalidArgumentException
+	 */
+	public static function tokens_in_url() {
+		static $tokensInURL;
+		if ( is_null( $tokensInURL ) ) {
+			$siteConfig  = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::TokensInURLFieldName};
+			$tokensInURL = is_null( $siteConfig )
+				? static::config()->get( 'tokens_in_url' )
+				: $siteConfig;
+
+		}
+
+		return $tokensInURL;
+	}
+
+	/**
 	 * @return \DelectusTransportInterface|\DelectusHTTPTransportInterface
 	 */
 	public static function transport() {

@@ -95,6 +95,47 @@ class DelectusApiRequestModel extends DelectusModel {
 		return $this->Source;
 	}
 
+	/**
+	 * Return the model from ModelClass and ModelID or null if can't or it doesn't exist in database (anymore)
+	 *
+	 * @return \DataObject
+	 * @throws \DelectusException
+	 */
+	public function getModel() {
+		$model = null;
+		if ( $this->ModelID && $this->ModelClass && ClassInfo::exists( $this->ModelClass ) ) {
+			$modelClass = $this->ModelClass;
+			$model      = $modelClass::get()->byID( $this->ModelID );
+		}
+
+		return $model;
+	}
+
+	public function ModelTitle() {
+		if ( $model = $this->getModel() ) {
+			return $model->Title;
+		} else {
+			return '';
+		}
+	}
+
+	public function ModelLink() {
+		if ( $model = $this->getModel() ) {
+			return $model->Link();
+		} else {
+			return '';
+		}
+	}
+
+	/**
+	 * @param DataObject|\DelectusModelExtension $model
+	 */
+	public function setModel( $model ) {
+		$this->ModelClass = $model->ClassName;
+		$this->ModelID    = $model->ID;
+		$this->ModelToken = $model->{$model->modelTokenFieldName()};
+	}
+
 	public function onBeforeWrite() {
 		if ( ! $this->isInDB() ) {
 			$this->RequestDate    = date( 'Y-m-d H:i:s' );
