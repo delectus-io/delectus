@@ -35,7 +35,7 @@ use DelectusException as Exception;
 	 *
 	 * @param \SS_HTTPRequest $request
 	 *
-	 * @return DataObject|\Delectus\Core\Model|null
+	 * @return DataObject
 	 * @throws \Exception
 	 */
 	public static function find_requested( \SS_HTTPRequest $request ) {
@@ -43,7 +43,7 @@ use DelectusException as Exception;
 			throw new Exception( "RequestDataTokenName not set on concrete class" );
 		}
 
-		if ( ! $data = DelectusModule::transport()->request_data( $request ) ) {
+		if ( ! $data = DelectusModule::transport()->requestData( $request ) ) {
 			throw new Exception( "No data" );
 		}
 		if ( ! isset( $data[ static::RequestTokenFieldName ] ) ) {

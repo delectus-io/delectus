@@ -13,6 +13,8 @@ Injector:
     properties:
       encoder: %$TransportEncoding
       encrypter: %$TransportEncryption
+  DelectusConfigModel:
+    factory: DelectusCurrentSiteConfigFactory
 DelectusModule:
   version: v1
   # Set to the client token you have been allocated, used to communicate with the delectus service
@@ -24,3 +26,5 @@ DelectusModule:
   # Set to the site id for the current site, used to communicate with the delectus service
   # can be overriden in Delectus tab of CMS
   site_identifier: ''
+SiteConfig:
+  delectus_fields_visible: true

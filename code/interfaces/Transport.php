@@ -12,6 +12,13 @@ interface DelectusTransportInterface {
 	public function makeRequest( DelectusApiRequestModel $request, &$resultCode, &$resultMessage);
 
 	/**
+	 * Return unencrypted, unencoded data from the request, e.g. from the Body via getBody or however else it is coming in.
+	 * @param \SS_HTTPRequest $request
+	 *
+	 * @return mixed
+	 */
+	public function requestData(SS_HTTPRequest $request);
+	/**
 	 * @param $result
 	 *
 	 * @return bool true if result is 'OK', false otherwise

@@ -154,6 +154,10 @@ class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTra
 		return $response ?: null;
 	}
 
+	public function requestData( SS_HTTPRequest $request ) {
+		return $this->decode( $request->getBody());
+	}
+
 	/**
 	 * Check if the raw result form a request is OK, i.e. for curl falsish is no, otherwise yes
 	 *

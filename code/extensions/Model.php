@@ -1,8 +1,7 @@
 <?php
 
 /**
- * DelectusModelExtension provides shared Fields, config and functions for extension to be added to models to provide index and search functionality,
- * for example DelectusFileExtension and DelectusPageExtension.
+ * DelectusModelExtension provides fields for Model's which are indexed by delectus to make e.g. URL available in front-end
  */
 class DelectusModelExtension extends DataExtension {
 	const StatusFieldName      = 'DelectusStatus';
@@ -19,7 +18,6 @@ class DelectusModelExtension extends DataExtension {
 
 	// set to false to disable Delectus functions at runtime, e.g. during testing other functionality
 	private static $delectus_enabled = true;
-
 
 	public function onBeforeWrite() {
 		if ( $this->owner->isInDB() ) {

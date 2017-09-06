@@ -62,6 +62,12 @@ class DelectusModule extends \Object {
 	private static $tokens_in_url = false;
 
 	/**
+	 * Default encryption algorythm
+	 * @var string
+	 */
+	private static $default_encryption_algorythm = 'aes-256-ctr';
+
+	/**
 	 * Return client token from SiteConfig or this module config.
 	 *
 	 * @return string
@@ -70,7 +76,7 @@ class DelectusModule extends \Object {
 	public static function tokens_in_url() {
 		static $tokensInURL;
 		if ( is_null( $tokensInURL ) ) {
-			$siteConfig  = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::TokensInURLFieldName};
+			$siteConfig  = static::config_model()->{DelectusSiteConfigExtension::TokensInURLFieldName};
 			$tokensInURL = is_null( $siteConfig )
 				? static::config()->get( 'tokens_in_url' )
 				: $siteConfig;
@@ -84,7 +90,7 @@ class DelectusModule extends \Object {
 	 * @return \DelectusTransportInterface|\DelectusHTTPTransportInterface
 	 */
 	public static function transport() {
-		return \Injector::inst()->get('DelectusTransport');
+		return \Injector::inst()->get( 'DelectusTransport' );
 	}
 
 	/**
@@ -117,8 +123,10 @@ class DelectusModule extends \Object {
 	public static function encryption_algorythm() {
 		static $algorythm;
 		if ( is_null( $algorythm ) ) {
-			$algorythm = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::EncryptionAlgorythmFieldName};
+			return static::config_model()->{DelectusSiteConfigExtension::EncryptionAlgorythmFieldName}
+				?: static::config()->get( 'default_encryption_algorythm' );
 		}
+
 		return $algorythm;
 	}
 
@@ -136,7 +144,7 @@ class DelectusModule extends \Object {
 			throw new Exception( "salt provided but not strong " . static::config()->get( 'encryption_algorythm' ) );
 		}
 
-		return md5($token);
+		return md5( $token );
 	}
 
 	/**
@@ -148,7 +156,7 @@ class DelectusModule extends \Object {
 	public static function client_token() {
 		static $clientToken;
 		if ( is_null( $clientToken ) ) {
-			$clientToken = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::ClientTokenFieldName}
+			$clientToken = static::config_model()->{DelectusSiteConfigExtension::ClientTokenFieldName}
 				?: static::config()->get( 'client_token' );
 
 		}
@@ -165,7 +173,7 @@ class DelectusModule extends \Object {
 	public static function client_salt() {
 		static $salt;
 		if ( is_null( $salt ) ) {
-			$salt = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::ClientSaltFieldName}
+			$salt = static::config_model()->{DelectusSiteConfigExtension::ClientSaltFieldName}
 				?: static::config()->get( 'client_salt' );
 		}
 
@@ -181,7 +189,7 @@ class DelectusModule extends \Object {
 	public static function client_secret() {
 		static $secret;
 		if ( is_null( $secret ) ) {
-			$secret = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::ClientSecretFieldName}
+			$secret = static::config_model()->{DelectusSiteConfigExtension::ClientSecretFieldName}
 				?: static::config()->get( 'client_secret' );
 		}
 
@@ -198,11 +206,21 @@ class DelectusModule extends \Object {
 		static $siteID;
 
 		if ( is_null( $siteID ) ) {
-			$siteID = SiteConfig::current_site_config()->{DelectusSiteConfigExtension::SiteIdentifierFieldName}
+			$siteID = static::config_model()->{DelectusSiteConfigExtension::SiteIdentifierFieldName}
 				?: static::config()->get( 'site_identifier' );
 		}
 
 		return $siteID;
+	}
+
+	/**
+	 * Return instance of the model that has configuration such as ClientToken, SiteIdentified etc from Injector 'DelectusConfigModel'.
+	 * by default this is the current SiteConfig.
+	 *
+	 * @return \DataObject
+	 */
+	public static function config_model() {
+		return Injector::inst()->create( 'DelectusConfigModel' );
 	}
 
 	/**
@@ -214,11 +232,12 @@ class DelectusModule extends \Object {
 		return static::config()->get( 'version', Config::UNINHERITED );
 	}
 
-	public static function endpoint($endpoint) {
+	public static function endpoint( $endpoint ) {
 		$endpoints = static::endpoints();
-		if (isset($endpoints[$endpoint])) {
-			return $endpoints[$endpoint];
+		if ( isset( $endpoints[ $endpoint ] ) ) {
+			return $endpoints[ $endpoint ];
 		}
+
 		return null;
 	}
 

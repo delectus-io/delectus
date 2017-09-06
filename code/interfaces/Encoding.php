@@ -1,8 +1,24 @@
 <?php
 
 interface DelectusEncodingInterface {
+	/**
+	 * Return encoded data, e.g. as a json_encoded string
+	 * @param        $data
+	 * @param string $contentType
+	 * @param null   $options
+	 *
+	 * @return mixed
+	 */
 	public function encode( $data, $contentType = '', $options = null );
 
+	/**
+	 * Return unencoded data, e.g. an array from json_decode
+	 * @param        $data
+	 * @param string $contentType
+	 * @param null   $options
+	 *
+	 * @return mixed
+	 */
 	public function decode( $data, $contentType = '', $options = null );
 
 	/**
