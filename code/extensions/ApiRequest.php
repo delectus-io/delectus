@@ -8,6 +8,7 @@
 class DelectusApiRequestExtension extends DataExtension {
 	/**
 	 * Common fields for logging/making a request between delectus services
+	 *
 	 * @var array
 	 */
 	private static $db = [
@@ -15,11 +16,10 @@ class DelectusApiRequestExtension extends DataExtension {
 		'ClientToken'     => 'Varchar(255)',
 		'SiteIdentifier'  => 'Varchar(255)',
 		'Version'         => 'Varchar(8)',
-		'ModelClass'      => 'Varchar(255)',
-		'ModelID'         => 'Int',
-		'ModelToken'      => 'Varchar(255)',
 		'Endpoint'        => 'Varchar(16)',
+		'Environment'     => 'Enum("dev,test,live")',
 		'Action'          => 'Varchar(16)',
+		'Outcome'         => 'Enum("Waiting,Success,Failure")',
 		'ResponseCode'    => 'Int',
 		'ResponseMessage' => 'Text',
 	];

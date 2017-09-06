@@ -5,7 +5,7 @@ use DelectusException as Exception;
 /**
  * Base class for services which make requests to the delectus services.
  */
-class DelectusApiRequestService extends \Object {
+abstract class DelectusApiRequestService extends \Object {
 	// should be defined in derived class, identified which config.endpoints to use
 	const Endpoint = '';
 
@@ -16,6 +16,9 @@ class DelectusApiRequestService extends \Object {
 	const SuccessResponseClassName = '';
 
 	const ErrorResponseClassName = DelectusErrorResponse::class;
+
+	// set in concrete service class, e.g. 'DelectusIndexApiRequestModel'
+	const ApiRequestClassName = '';
 
 	// how far into the future the queued job should run ('now' for send immediately)
 	private static $queue_delay = '+1 mins';
@@ -100,23 +103,23 @@ class DelectusApiRequestService extends \Object {
 	 * @throws \ValidationException
 	 */
 	public function makeRequest( DelectusApiRequestModel $request ) {
-		$request->Endpoint       = static::Endpoint;
-		$request->ClientToken    = DelectusModule::client_token();
-		$request->Version        = DelectusModule::version();
-		$request->SiteIdentifier = DelectusModule::site_identifier();
-		$request->ResultCode     = 0;
-		$request->ResultMessage  = null;
+		$request->Endpoint        = static::Endpoint;
+		$request->ClientToken     = DelectusModule::client_token();
+		$request->Version         = DelectusModule::version();
+		$request->SiteIdentifier  = DelectusModule::site_identifier();
+		$request->ResponseCode    = 0;
+		$request->ResponseMessage = null;
 
 		$logWriter = null;
 
 		if ( $logPath = $this->config()->get( 'log_path' ) ) {
-			if ($logPath = realpath(Controller::join_links( BASE_PATH, $logPath))) {
+			if ( $logPath = realpath( Controller::join_links( BASE_PATH, $logPath ) ) ) {
 				$logName = $this->config()->get( 'log_name' ) ?: ( static::class . '.log' );
 
-				$logPathName = Controller::join_links($logPath, $logName);
+				$logPathName = Controller::join_links( $logPath, $logName );
 
 				// set to config.log_level if set, otherwise DEBUG if in dev mode, or WARN otherwise
-				$logLevel = $this->config()->get('log_level') ?: ( Director::isDev() ? SS_Log::DEBUG : SS_Log::WARN );
+				$logLevel = $this->config()->get( 'log_level' ) ?: ( Director::isDev() ? SS_Log::DEBUG : SS_Log::WARN );
 
 				SS_Log::add_writer( $logWriter = new SS_LogFileWriter( $logPathName ), $logLevel, '>=' );
 			}
@@ -127,6 +130,8 @@ class DelectusApiRequestService extends \Object {
 		$immediate = $request->RunEpoch
 			? $request->RunEpoch <= time()
 			: false;
+
+		$result = null;
 
 		if ( $immediate || $this->config()->get( 'send_immediate' ) ) {
 			$request->RunEpoch = time();
@@ -142,7 +147,7 @@ class DelectusApiRequestService extends \Object {
 		} else {
 			if ( $result = $this->queueRequest( $request ) ) {
 				$resultMessage = _t(
-					'DelectusIndexService.QueueOKMessage',
+					'DelectusIndexService.EnqueueSuccessMessage',
 					'Job queued with id {jid} for request with id {rid}',
 					[
 						'jid' => $result,
@@ -151,7 +156,7 @@ class DelectusApiRequestService extends \Object {
 				);
 			} else {
 				$resultMessage = _t(
-					'DelectusIndexService.QueueFailedMessage',
+					'DelectusIndexService.EnqueueFailedMessage',
 					'Failed to queue request with id {id} as a job',
 					[
 						'id' => $request->ID,
@@ -254,7 +259,7 @@ class DelectusApiRequestService extends \Object {
 			$request->Status  = $request::StatusFailed;
 			$request->Outcome = $request::OutcomeFailure;
 
-			$response         = new $errorResponseClassName( null, $e->getCode(), $e->getMessage() );
+			$response = new $errorResponseClassName( null, $e->getCode(), $e->getMessage() );
 		}
 
 		$request->ResultMessage = $resultMessage;
@@ -280,7 +285,7 @@ class DelectusApiRequestService extends \Object {
 	 *
 	 * @return bool true if handled, false otherwise
 	 */
-	protected function handleError( DelectusResponse $response) {
+	protected function handleError( DelectusResponse $response ) {
 		SS_Log::log( __METHOD__ . ': ' . $response->getResponseMessage(), SS_Log::WARN );
 
 		return true;
@@ -299,9 +304,11 @@ class DelectusApiRequestService extends \Object {
 	 * @throws \ValidationException
 	 */
 	protected static function enqueue_request( $model, $description, $action ) {
+		$requestModelClass = static::ApiRequestClassName;
+
 		/** @var \DelectusApiRequestModel $request */
 		// find the last request for the model
-		$request = DelectusApiRequestModel::get()->filter( [
+		$request = $requestModelClass::get()->filter( [
 			'ModelClass' => $model->ClassName,
 			'ModelID'    => $model->ID,
 		] )->sort( 'LastStatusDate', 'DESC' )->limit( 1 )->first();
@@ -311,23 +318,15 @@ class DelectusApiRequestService extends \Object {
 			// and the queue handling should pick it up for a retry
 			if ( $request->Action == $action ) {
 				$request->RequestCount ++;
-				$enqueue = false;
-			} else {
-				$enqueue = true;
 			}
 		} else {
-			$enqueue = true;
-		}
-		if ( $enqueue ) {
-
-			$request = new DelectusApiRequestModel( [
+			$request = new $requestModelClass( [
 				'Title'        => $description,
 				'Action'       => $action,
 				'Link'         => $model->Link(),
 				'RequestCount' => 1,
 			] );
 			$request->setModel( $model );
-
 		}
 		$request->write();
 
