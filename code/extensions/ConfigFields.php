@@ -47,19 +47,20 @@ class DelectusConfigFieldsExtension extends \DataExtension {
 	 */
 	public function onBeforeWrite() {
 		parent::onBeforeWrite();
-		if ( ! $this->owner->isInDB() ) {
-			if ( ! $this->{self::ClientSaltFieldName} ) {
-				$this->{self::ClientSaltFieldName} = \DelectusModule::generate_token();
-			}
-			if ( ! $this->{self::ClientTokenFieldName} ) {
-				$this->{self::ClientTokenFieldName} = \DelectusModule::generate_token();
-			}
-			if ( ! $this->{self::ClientSecretFieldName} ) {
-				$this->{self::ClientSecretFieldName} = \DelectusModule::generate_token();
-			}
-			if ( ! $this->{self::EncryptionAlgorythmFieldName} ) {
-				$this->{self::EncryptionAlgorythmFieldName} = \DelectusModule::encryption_algorythm();
-			}
+		if ( ! $this->owner->{self::ClientSaltFieldName} ) {
+			$this->owner->{self::ClientSaltFieldName} = \DelectusModule::generate_token();
+		}
+		if ( ! $this->owner->{self::ClientTokenFieldName} ) {
+			$this->owner->{self::ClientTokenFieldName} = \DelectusModule::generate_token();
+		}
+		if ( ! $this->owner->{self::ClientSecretFieldName} ) {
+			$this->owner->{self::ClientSecretFieldName} = \DelectusModule::generate_token();
+		}
+		if ( ! $this->owner->{self::SiteIdentifierFieldName} ) {
+			$this->owner->{self::SiteIdentifierFieldName} = \DelectusModule::generate_token();
+		}
+		if ( ! $this->owner->{self::EncryptionAlgorythmFieldName} ) {
+			$this->owner->{self::EncryptionAlgorythmFieldName} = \DelectusModule::encryption_algorythm();
 		}
 	}
 
@@ -110,7 +111,7 @@ class DelectusConfigFieldsExtension extends \DataExtension {
 					),
 					DelectusModule::tokens_in_url() )
 					->setRightTitle( _t( 'Delectus.TokensInURLDescription', "Send tokens on URL instead of headers, usefull if a proxy is preventing headers from getting through" ) ),
-				DropdownField::create(
+				TextField::create(
 					self::EncryptionAlgorythmFieldName,
 					_t(
 						'Delectus.EncryptionAlgorythmLabel',
@@ -118,7 +119,7 @@ class DelectusConfigFieldsExtension extends \DataExtension {
 					),
 					DelectusModule::encryption_algorythm() )
 					->setRightTitle( _t( 'Delectus.EncryptionAlgorythmDescription', "How to encrypt data in requests, only choose No Encryption if over ssl or local testing!" ) )
-					->setEmptyString( 'No encryption (not advised)' ),
+//					->setEmptyString( 'No encryption (not advised)' ),
 
 			];
 			/** @var \FormField $field */

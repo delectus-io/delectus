@@ -14,9 +14,9 @@ class DelectusCurrentSiteConfigFactory implements Factory {
 	 * @param string $service The class name of the service.
 	 * @param array  $params  The constructor parameters.
 	 *
-	 * @return object The created service instances.
+	 * @return \SiteConfig
 	 */
 	public function create( $service, array $params = array() ) {
-		return SiteConfig::current_site_config()->DelectusConfig();
+		return SiteConfig::current_site_config();
 	}
 }

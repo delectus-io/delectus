@@ -16,19 +16,9 @@ class DelectusCurrentMemberConfigFactory implements Factory {
 	 * @param string $service The class name of the service.
 	 * @param array  $params  The constructor parameters.
 	 *
-	 * @return \ArrayData|\DataObject
+	 * @return \Member
 	 */
 	public function create( $service, array $params = array() ) {
-
-		if ( $member = Member::currentUser() ) {
-			$config = $member->DelectusConfig();
-		} else {
-			$config = new ArrayData( [
-				'ClientToken'    => null,
-				'SiteIdentifier' => null,
-			] );
-		}
-
-		return $config;
+		return Member::currentUser();
 	}
 }

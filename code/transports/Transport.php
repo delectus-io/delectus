@@ -130,29 +130,29 @@ abstract class DelectusTransport extends \Object implements DelectusTransportInt
 	}
 
 	/**
-	 * @param string $data should already be encoded as a string
+	 * @param string $string   should already be encoded as a string
 	 * @param string $password if null then the DelectusModule client_salt will be used
 	 *
 	 * @return string
 	 * @throws \InvalidArgumentException
 	 */
-	public function encrypt( $data, $password = null ) {
+	public function encrypt( $string, $password = null ) {
 		$password = is_null( $password ) ? DelectusModule::client_salt() : $password;
 
-		return $this->getEncrypter()->encrypt( $data, $password );
+		return $this->getEncrypter()->encrypt( $string, $password );
 	}
 
 	/**
-	 * @param string $data should be encoded as a string
+	 * @param string $string   should be encoded as a string
 	 * @param string $password if null then the DelectusModule client_salt will be used
 	 *
 	 * @return mixed
 	 * @throws \InvalidArgumentException
 	 */
-	public function decrypt( $data, $password = null ) {
+	public function decrypt( $string, $password = null ) {
 		$password = is_null( $password ) ? DelectusModule::client_salt() : $password;
 
-		return $this->getDecrypter()->decrypt( $data, $password );
+		return $this->getDecrypter()->decrypt( $string, $password );
 	}
 
 }
