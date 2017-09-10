@@ -2,6 +2,9 @@
 
 abstract class DelectusTransport extends \Object implements DelectusTransportInterface {
 
+	/** @var \DelectusModule */
+	protected $module;
+
 	/** @var  \DelectusEncodingInterface */
 	protected $encoder;
 
@@ -13,6 +16,24 @@ abstract class DelectusTransport extends \Object implements DelectusTransportInt
 
 	/** @var  \DelectusEncryptionInterface */
 	protected $decrypter;
+
+	/**
+	 * @param \DelectusModule $module
+	 *
+	 * @return $this
+	 */
+	public function setModule( DelectusModule $module ) {
+		$this->module = $module;
+
+		return $this;
+	}
+
+	/**
+	 * @return \DelectusModule
+	 */
+	public function getModule() {
+		return $this->module;
+	}
 
 	/**
 	 * @param \DelectusEncodingInterface $encoder
@@ -114,6 +135,7 @@ abstract class DelectusTransport extends \Object implements DelectusTransportInt
 
 	/**
 	 * return the mime type this encoder will encode as
+	 *
 	 * @return string e.g. 'application/json'
 	 */
 
@@ -123,6 +145,7 @@ abstract class DelectusTransport extends \Object implements DelectusTransportInt
 
 	/**
 	 * return the mime type of content the decoder will accept
+	 *
 	 * @return string e.g. 'application/json'
 	 */
 	public function acceptType() {

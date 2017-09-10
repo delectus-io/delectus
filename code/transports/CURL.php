@@ -27,14 +27,6 @@ class DelectusCURLTransport extends DelectusTransport implements DelectusHTTPTra
 	 */
 	private static $encryption_algorythm = '';
 
-	/** @var \DelectusModule */
-	protected $module;
-
-	public function __construct( DelectusModule $module ) {
-		$this->module = $module;
-		parent::__construct();
-	}
-
 	/**
 	 * Make request to a Delectus endpoint/action passing any data.
 	 *

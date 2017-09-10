@@ -1,3 +1,6 @@
 ---
 Name: delectus-routes
 ---
+Director:
+  rules:
+    'delectus/resource': 'Resource_Controller'

@@ -8,13 +8,18 @@ Injector:
     class: DelectusJSONEncoding
   TransportEncryption:
     class: DelectusOpenSSLEncryption
+  DelectusModule:
+    class: DelectusModule
   DelectusTransport:
     class: DelectusCURLTransport
     properties:
+      module: %$DelectusModule
       encoder: %$TransportEncoding
       encrypter: %$TransportEncryption
   DelectusConfigModel:
     factory: DelectusCurrentSiteConfigFactory
+  DelectusResourceOwner:
+    factory: DelectusCurrentMemberResourceOwner
 DelectusModule:
   version: v1
   # Set to the client token you have been allocated, used to communicate with the delectus service
@@ -26,5 +31,9 @@ DelectusModule:
   # Set to the site id for the current site, used to communicate with the delectus service
   # can be overriden in Delectus tab of CMS
   site_identifier: ''
+  # max number of files which can be uploaded at a time
+  default_max_concurrent_files: 5
+  # max size of a single uploaded file in MB
+  default_max_upload_file_size: 10
 SiteConfig:
   delectus_fields_visible: true

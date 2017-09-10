@@ -13,9 +13,9 @@ class DelectusModule extends \Object {
 	const TokenSchema = 'Varchar(' . self::TokenLength . ')';
 
 	// name of tab in cms to show delectus related fields/controls on
-	private static $cms_tab_name = 'Root.Delectus';
+	private static $cms_tab_name = 'Delectus';
 
-	private static $admin_tab_name = 'Root.Delectus';
+	private static $admin_tab_name = 'Delectus';
 
 	/**
 	 * Set to the client token you have been allocated, used to communicate with the delectus service
@@ -63,9 +63,32 @@ class DelectusModule extends \Object {
 
 	/**
 	 * Default encryption algorythm
+	 *
 	 * @var string
 	 */
 	private static $default_encryption_algorythm = 'aes-256-ctr';
+
+	/**
+	 * Used to generate the upload folder for clients, '{' token '}' replacement is available for:
+	 *
+	 * -  <ConfigFieldName>   = name of a field from the config, e.g. 'ClientToken', 'S3Folder' if S3 extension installed etc
+	 * -  ID                  = ID of model which holds config
+	 * -  Name                = full name or Title of client, this may not be unique so need to use with e.g. ID or other unique value, this
+	 *                          may also be exposed in the URL so be carefull there
+	 *
+	 * Tokens are optionally cleaned using url filter before replacement (see self.client_upload_folder)
+	 *
+	 * Should be relative to assets folder.
+	 *
+	 * @var string
+	 */
+	private static $delectus_upload_folder_format = 'clients/{DelectusClientToken}/uploads';
+
+	// max number of files which can be uploaded at once (via multiple file upload)
+	private static $default_max_concurrent_files = 5;
+
+	// max size of a single file uploaded, in MB
+	private static $default_max_upload_file_size = 10;
 
 	/**
 	 * Return client token from SiteConfig or this module config.
@@ -84,6 +107,24 @@ class DelectusModule extends \Object {
 		}
 
 		return $tokensInURL;
+	}
+
+	/**
+	 * Return the max size of a single uploaded file.
+	 *
+	 * @return int
+	 */
+	public static function default_max_upload_file_size() {
+		return (int) static::config()->get( 'default_max_upload_file_size' );
+	}
+
+	/**
+	 * Return the max number of files which can be uploaded at a time.
+	 *
+	 * @return int
+	 */
+	public static function default_max_concurrent_files() {
+		return (int) static::config()->get( 'default_max_concurrent_files' );
 	}
 
 	/**
@@ -217,10 +258,75 @@ class DelectusModule extends \Object {
 	 * Return instance of the model that has configuration such as ClientToken, SiteIdentified etc from Injector 'DelectusConfigModel'.
 	 * by default this is the current SiteConfig.
 	 *
-	 * @return \DataObject
+	 * @return \ArrayData|\DataObject|\DelectusConfigFieldsExtension
 	 */
 	public static function config_model() {
-		return Injector::inst()->create( 'DelectusConfigModel' );
+		static $model;
+		if (is_null($model)) {
+			$model = Injector::inst()->create( 'DelectusConfigModel' );
+		}
+
+		return $model;
+	}
+
+	/**
+	 * Return the model who is to 'own' uploaded resources
+	 * @return \DataObject|\DelectusResourceOwnerExtension
+	 */
+	public static function resource_owner() {
+		static $resourceOwner;
+		if (is_null($resourceOwner)) {
+			$resourceOwner = Injector::inst()->create( 'DelectusResourceOwner' );
+		}
+		return $resourceOwner;
+	}
+
+	public static function max_upload_file_size() {
+		return static::config_model()->{DelectusConfigFieldsExtension::MaxFileSizeFieldName}
+			?: static::default_max_upload_file_size();
+	}
+
+	public static function max_concurrent_files() {
+		return static::config_model()->{DelectusConfigFieldsExtension::MaxConcurrentFilesFieldName}
+			?: static::default_max_concurrent_files();
+	}
+
+	/**
+	 * Return folder for client files to upload to, either from the current config model, or build one using config.delectus_upload_folder_format. Should be
+	 * used by dropzone, file listings etc delectus_upload_folder_format can be set on the extended model, or on this Module.
+	 *
+	 * @return \Folder
+	 */
+	public static function upload_folder() {
+		static $folder;
+
+		if (is_null($folder)) {
+
+			$configModel = static::config_model();
+
+			if ( $configModel->{DelectusConfigFieldsExtension::UploadFolderFieldName} ) {
+				$folderPath = $configModel->{DelectusConfigFieldsExtension::UploadFolderFieldName};
+			} else {
+
+				$folderPath = Controller::join_links(
+					str_replace(
+						array_map(
+							function ( $fieldName ) {
+								return '{' . $fieldName . '}';
+							},
+							array_keys( $configModel->toMap() )
+						),
+						$configModel->toMap(),
+						$configModel->config()->get( 'delectus_upload_folder_format' )
+							?: static::config()->get( 'delectus_upload_folder_format' )
+					)
+				);
+			}
+
+			$folder = Folder::find_or_make( $folderPath );
+		}
+		return $folder;
+
 	}
 
 	/**

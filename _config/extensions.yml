@@ -11,4 +11,7 @@ SiteTree:
     - DelectusModelExtension
 File:
   extensions:
+    - DelectusFileExtension
+DelectusLink:
+  extensions:
     - DelectusModelExtension

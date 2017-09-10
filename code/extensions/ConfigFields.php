@@ -2,7 +2,9 @@
 
 /**
  * DelectusConfigFields adds fields to a Model so it can be used to store information used for calling delectus
- * services, such as 'ClientToken', 'SiteIdentifier' etc
+ * services, such as 'ClientToken', 'SiteIdentifier' etc. By default delectus adds this to SiteConfig via
+ * Injector.DelectusConfigModel setting which points to the DelectusCurrentSiteConfigFactory class, however could be the
+ * Member e.g. by setting the factory for DelectusConfigModel to DelectusCurrentMemberConfigFactory instead in app config.
  */
 class DelectusConfigFieldsExtension extends \DataExtension {
 	const ClientTokenFieldName         = 'DelectusClientToken';
@@ -11,6 +13,9 @@ class DelectusConfigFieldsExtension extends \DataExtension {
 	const SiteIdentifierFieldName      = 'DelectusSiteIdentifier';
 	const TokensInURLFieldName         = 'DelectusTokensInURL';
 	const EncryptionAlgorythmFieldName = 'DelectusEncryptionAlgorythm';
+	const UploadFolderFieldName        = 'DelectusUploadFolder';
+	const MaxConcurrentFilesFieldName  = 'DelectusMaxConcurrentFiles';
+	const MaxFileSizeFieldName         = 'DelectusMaxFileSizeMB';
 
 	private static $db = [
 		self::ClientTokenFieldName         => 'Varchar(255)',
@@ -19,6 +24,27 @@ class DelectusConfigFieldsExtension extends \DataExtension {
 		self::SiteIdentifierFieldName      => 'Varchar(255)',
 		self::EncryptionAlgorythmFieldName => 'Varchar(255)',
 		self::TokensInURLFieldName         => 'Boolean',
+		self::UploadFolderFieldName        => 'Varchar(255)',
+		self::MaxConcurrentFilesFieldName  => 'Int',
+		self::MaxFileSizeFieldName         => 'Int',
+	];
+	/**
+	 * Name of fields which should be returned from the extended model as config fields e.g. by DelectusModule::config_model().
+	 *
+	 * Other extensions may add to this, e.g. S3Storage extension may add 'S3URN' and S3ApiKey and S3ApiSecret fields to here and the model.
+	 *
+	 * @var array
+	 */
+	private static $delectus_config_fields = [
+		self::ClientTokenFieldName,
+		self::ClientSaltFieldName,
+		self::ClientSecretFieldName,
+		self::SiteIdentifierFieldName,
+		self::EncryptionAlgorythmFieldName,
+		self::TokensInURLFieldName,
+		self::UploadFolderFieldName,
+		self::MaxConcurrentFilesFieldName,
+		self::MaxFileSizeFieldName
 	];
 
 	// hide fields on the extended model if false, show them read-only if true, unless ADMIN in which case they will be visible and editable
@@ -29,14 +55,12 @@ class DelectusConfigFieldsExtension extends \DataExtension {
 	 * (e.g. ClientToken, SiteIdentifier etc)
 	 */
 	public function DelectusConfig() {
-		return new ArrayData( [
-			'ClientToken'         => $this->owner->{self::ClientTokenFieldName},
-			'ClientSalt'          => $this->owner->{self::ClientSaltFieldName},
-			'ClientSecret'        => $this->owner->{self::ClientSecretFieldName},
-			'SiteIdentifier'      => $this->owner->{self::SiteIdentifierFieldName},
-			'TokensInURL'         => $this->owner->{self::TokensInURLFieldName},
-			'EncryptionAlgorythm' => $this->owner->{self::EncryptionAlgorythmFieldName},
-		] );
+		return new ArrayData(
+			array_intersect_key(
+				array_flip( $this->owner->config()->get( 'delectus_config_fields' ) ),
+				$this->owner->toMap()
+			)
+		);
 	}
 
 	/**
@@ -61,6 +85,15 @@ class DelectusConfigFieldsExtension extends \DataExtension {
 		}
 		if ( ! $this->owner->{self::EncryptionAlgorythmFieldName} ) {
 			$this->owner->{self::EncryptionAlgorythmFieldName} = \DelectusModule::encryption_algorythm();
+		}
+		if ( ! $this->owner->{self::UploadFolderFieldName} ) {
+			$this->owner->{self::UploadFolderFieldName} = \DelectusModule::upload_folder()->Filename;
+		}
+		if ( ! $this->owner->{self::MaxFileSizeFieldName} ) {
+			$this->owner->{self::MaxFileSizeFieldName} = \DelectusModule::default_max_upload_file_size();
+		}
+		if ( ! $this->owner->{self::MaxConcurrentFilesFieldName} ) {
+			$this->owner->{self::MaxConcurrentFilesFieldName} = \DelectusModule::default_max_concurrent_files();
 		}
 	}
 
@@ -118,9 +151,43 @@ class DelectusConfigFieldsExtension extends \DataExtension {
 						'Request Data Encryption Method'
 					),
 					DelectusModule::encryption_algorythm() )
-					->setRightTitle( _t( 'Delectus.EncryptionAlgorythmDescription', "How to encrypt data in requests, only choose No Encryption if over ssl or local testing!" ) )
-//					->setEmptyString( 'No encryption (not advised)' ),
-
+					->setRightTitle( _t(
+						'Delectus.EncryptionAlgorythmDescription',
+						"How to encrypt data in requests, only choose No Encryption if over ssl or local testing!"
+					) ),
+				TextField::create(
+					self::UploadFolderFieldName,
+					_t(
+						'Delectus.UploadFolderLabel',
+						'Upload folder name (relative to site base)'
+					),
+					DelectusModule::upload_folder()->Filename )
+					->setRightTitle( _t(
+						'Delectus.UploadFolderDescription',
+						"Name of folder files get uploaded to via CMS and front-end. If this changes then existing files may be lost!"
+					) ),
+				TextField::create(
+					self::MaxConcurrentFilesFieldName,
+					_t(
+						'Delectus.MaxConcurrentFilesLabel',
+						'Max concurrent files'
+					),
+					DelectusModule::max_concurrent_files() )
+					->setRightTitle( _t(
+						'Delectus.UploadMaxConcurrentFilesDescription',
+						"Max number of files which can be uploaded at a time, e.g. via drag-and-drop"
+					) ),
+				TextField::create(
+					self::MaxFileSizeFieldName,
+					_t(
+						'Delectus.MaxFileSizeLabel',
+						'Max file size'
+					),
+					DelectusModule::max_upload_file_size() )
+					->setRightTitle( _t(
+						'Delectus.MaxFileSizeDescription',
+						"Max size of a single uploaded file"
+					) ),
 			];
 			/** @var \FormField $field */
 			foreach ( $addFields as $key => $field ) {

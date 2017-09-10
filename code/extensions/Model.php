@@ -2,6 +2,11 @@
 
 /**
  * DelectusModelExtension provides fields for Model's which are indexed by delectus to make e.g. URL available in front-end
+ *
+ * @property string StatusFieldName
+ * @property string LastUpdatedFieldName
+ * @property string RemoteLinkFieldName
+ * @property string ModelTokenFieldName
  */
 class DelectusModelExtension extends DataExtension {
 	const StatusFieldName      = 'DelectusStatus';
@@ -34,7 +39,7 @@ class DelectusModelExtension extends DataExtension {
 	public function updateCMSFields( FieldList $fields ) {
 		parent::updateCMSFields( $fields );
 
-		if ( $this->shouldAddDelectusTokenField() ) {
+		if ( $this->shouldAddDelectusInfoFields() ) {
 			$addFields = [
 				new TextField(
 					self::StatusFieldName,
@@ -66,8 +71,8 @@ class DelectusModelExtension extends DataExtension {
 				),
 			];
 			if ( ! Permission::check( 'ADMIN' ) ) {
-				foreach ($addFields as $key => $field) {
-					$addFields[$key] = $field->performReadonlyTransformation();
+				foreach ( $addFields as $key => $field ) {
+					$addFields[ $key ] = $field->performReadonlyTransformation();
 				}
 			}
 			$fields->addFieldsToTab(
@@ -82,7 +87,7 @@ class DelectusModelExtension extends DataExtension {
 	 *
 	 * @return bool
 	 */
-	protected function shouldAddDelectusTokenField() {
+	protected function shouldAddDelectusInfoFields() {
 		return true;
 	}
 
