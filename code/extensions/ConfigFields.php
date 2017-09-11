@@ -84,10 +84,10 @@ class DelectusConfigFieldsExtension extends \DataExtension {
 			$this->owner->{self::SiteIdentifierFieldName} = \DelectusModule::generate_token();
 		}
 		if ( ! $this->owner->{self::EncryptionAlgorythmFieldName} ) {
-			$this->owner->{self::EncryptionAlgorythmFieldName} = \DelectusModule::encryption_algorythm();
+			$this->owner->{self::EncryptionAlgorythmFieldName} = \DelectusModule::encryption_algorythm($this->owner);
 		}
 		if ( ! $this->owner->{self::UploadFolderFieldName} ) {
-			$this->owner->{self::UploadFolderFieldName} = \DelectusModule::upload_folder()->Filename;
+			$this->owner->{self::UploadFolderFieldName} = \DelectusModule::upload_folder( $this->owner)->Filename;
 		}
 		if ( ! $this->owner->{self::MaxFileSizeFieldName} ) {
 			$this->owner->{self::MaxFileSizeFieldName} = \DelectusModule::default_max_upload_file_size();

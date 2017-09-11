@@ -161,10 +161,12 @@ class DelectusModule extends \Object {
 	 *
 	 * @return string
 	 */
-	public static function encryption_algorythm() {
+	public static function encryption_algorythm($configModel = null) {
 		static $algorythm;
-		if ( is_null( $algorythm ) ) {
-			return static::config_model()->{DelectusConfigFieldsExtension::EncryptionAlgorythmFieldName}
+		if ( is_null( $algorythm ) || $configModel) {
+			$configModel = $configModel ?: static::config_model();
+
+			return $configModel->{DelectusConfigFieldsExtension::EncryptionAlgorythmFieldName}
 				?: static::config()->get( 'default_encryption_algorythm' );
 		}
 
@@ -295,36 +297,46 @@ class DelectusModule extends \Object {
 	 * Return folder for client files to upload to, either from the current config model, or build one using config.delectus_upload_folder_format. Should be
 	 * used by dropzone, file listings etc delectus_upload_folder_format can be set on the extended model, or on this Module.
 	 *
+	 * @param null $configModel use this one instead of one from factory, e.g. if Member is being created then
+	 *                          no current member exists, however maybe in the process of being created so
+	 *                          has enough information to build the folder name
+	 *
 	 * @return \Folder
 	 */
-	public static function upload_folder() {
+	public static function upload_folder($configModel = null) {
 		static $folder;
 
-		if (is_null($folder)) {
+		if (is_null($folder) || $configModel) {
 
-			$configModel = static::config_model();
+			$configModel = $configModel ?: static::config_model();
 
-			if ( $configModel->{DelectusConfigFieldsExtension::UploadFolderFieldName} ) {
-				$folderPath = $configModel->{DelectusConfigFieldsExtension::UploadFolderFieldName};
-			} else {
+			if ($configModel) {
 
-				$folderPath = Controller::join_links(
-					str_replace(
-						array_map(
-							function ( $fieldName ) {
-								return '{' . $fieldName . '}';
-							},
-							array_keys( $configModel->toMap() )
-						),
-						$configModel->toMap(),
-						$configModel->config()->get( 'delectus_upload_folder_format' )
-							?: static::config()->get( 'delectus_upload_folder_format' )
-					)
-				);
+				if ( $configModel->{DelectusConfigFieldsExtension::UploadFolderFieldName} ) {
+					$folderPath = $configModel->{DelectusConfigFieldsExtension::UploadFolderFieldName};
+
+				} else {
+
+					$folderPath = Controller::join_links(
+						str_replace(
+							array_map(
+								function ( $fieldName ) {
+									return '{' . $fieldName . '}';
+								},
+								array_keys( $configModel->toMap() )
+							),
+							$configModel->toMap(),
+							$configModel->config()->get( 'delectus_upload_folder_format' )
+								?: static::config()->get( 'delectus_upload_folder_format' )
+						)
+					);
+				}
+
+				$folder = Folder::find_or_make( $folderPath );
 			}
 
-			$folder = Folder::find_or_make( $folderPath );
 		}
+
 		return $folder;
 
 	}
