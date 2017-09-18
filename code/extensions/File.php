@@ -9,14 +9,4 @@ class DelectusFileExtension extends DelectusModelExtension {
 		return (bool)$this->owner->ID;
 	}
 
-	/**
-	 * @return bool
-	 * @throws \InvalidArgumentException
-	 */
-	public function canView() {
-		if (Permission::check('ADMIN')) {
-//			return true;
-		}
-		return DelectusModule::resource_owner()->canViewFile($this->owner);
-	}
 }

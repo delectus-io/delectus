@@ -1,6 +1,7 @@
 ---
 Name: delectus-extensions
 After:
+  - 'cms/*'
   - 'framework/*'
 ---
 SiteConfig:

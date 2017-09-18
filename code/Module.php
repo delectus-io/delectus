@@ -13,7 +13,7 @@ class DelectusModule extends \Object {
 	const TokenSchema = 'Varchar(' . self::TokenLength . ')';
 
 	// name of tab in cms to show delectus related fields/controls on
-	private static $cms_tab_name = 'Delectus';
+	private static $cms_tab_name = 'Root.Delectus';
 
 	private static $admin_tab_name = 'Delectus';
 
@@ -82,7 +82,9 @@ class DelectusModule extends \Object {
 	 *
 	 * @var string
 	 */
-	private static $delectus_upload_folder_format = 'clients/{DelectusClientToken}/uploads';
+	private static $delectus_resources_folder_format = 'clients/{DelectusClientToken}/resources';
+
+	private static $delectus_private_folder_format = 'clients/{DelectusClientToken}/private';
 
 	// max number of files which can be uploaded at once (via multiple file upload)
 	private static $default_max_concurrent_files = 5;
@@ -161,9 +163,9 @@ class DelectusModule extends \Object {
 	 *
 	 * @return string
 	 */
-	public static function encryption_algorythm($configModel = null) {
+	public static function encryption_algorythm( $configModel = null ) {
 		static $algorythm;
-		if ( is_null( $algorythm ) || $configModel) {
+		if ( is_null( $algorythm ) || $configModel ) {
 			$configModel = $configModel ?: static::config_model();
 
 			return $configModel->{DelectusConfigFieldsExtension::EncryptionAlgorythmFieldName}
@@ -264,23 +266,11 @@ class DelectusModule extends \Object {
 	 */
 	public static function config_model() {
 		static $model;
-		if (is_null($model)) {
-			$model = Injector::inst()->create( 'DelectusConfigModel' );
+		if ( is_null( $model ) ) {
+			$model = Injector::inst()->create( 'DelectusConfigObject' );
 		}
 
 		return $model;
-	}
-
-	/**
-	 * Return the model who is to 'own' uploaded resources
-	 * @return \DataObject|\DelectusResourceOwnerExtension
-	 */
-	public static function resource_owner() {
-		static $resourceOwner;
-		if (is_null($resourceOwner)) {
-			$resourceOwner = Injector::inst()->create( 'DelectusResourceOwner' );
-		}
-		return $resourceOwner;
 	}
 
 	public static function max_upload_file_size() {
@@ -294,8 +284,8 @@ class DelectusModule extends \Object {
 	}
 
 	/**
-	 * Return folder for client files to upload to, either from the current config model, or build one using config.delectus_upload_folder_format. Should be
-	 * used by dropzone, file listings etc delectus_upload_folder_format can be set on the extended model, or on this Module.
+	 * Return folder for client files to upload to, either from the current config model, or build one using config.delectus_resources_folder_format. Should be
+	 * used by dropzone, file listings etc delectus_resources_folder_format can be set on the extended model, or on this Module.
 	 *
 	 * @param null $configModel use this one instead of one from factory, e.g. if Member is being created then
 	 *                          no current member exists, however maybe in the process of being created so
@@ -303,14 +293,14 @@ class DelectusModule extends \Object {
 	 *
 	 * @return \Folder
 	 */
-	public static function upload_folder($configModel = null) {
+	public static function resources_folder( $configModel = null ) {
 		static $folder;
 
-		if (is_null($folder) || $configModel) {
+		if ( is_null( $folder ) || $configModel ) {
 
 			$configModel = $configModel ?: static::config_model();
 
-			if ($configModel) {
+			if ( $configModel ) {
 
 				if ( $configModel->{DelectusConfigFieldsExtension::UploadFolderFieldName} ) {
 					$folderPath = $configModel->{DelectusConfigFieldsExtension::UploadFolderFieldName};
@@ -326,21 +316,64 @@ class DelectusModule extends \Object {
 								array_keys( $configModel->toMap() )
 							),
 							$configModel->toMap(),
-							$configModel->config()->get( 'delectus_upload_folder_format' )
-								?: static::config()->get( 'delectus_upload_folder_format' )
+							$configModel->config()->get( 'delectus_resources_folder_format' )
+								?: static::config()->get( 'delectus_resources_folder_format' )
 						)
 					);
 				}
 
 				$folder = Folder::find_or_make( $folderPath );
 			}
-
 		}
 
 		return $folder;
-
 	}
 
+	/**
+	 * Return folder for client files to upload to, either from the current config model, or build one using config.delectus_resources_folder_format. Should be
+	 * used by dropzone, file listings etc delectus_resources_folder_format can be set on the extended model, or on this Module.
+	 *
+	 * @param null $configModel use this one instead of one from factory, e.g. if Member is being created then
+	 *                          no current member exists, however maybe in the process of being created so
+	 *                          has enough information to build the folder name
+	 *
+	 * @return \Folder
+	 */
+	public static function private_folder( $configModel = null ) {
+		static $folder;
+
+		if ( is_null( $folder ) || $configModel ) {
+
+			$configModel = $configModel ?: static::config_model();
+
+			if ( $configModel ) {
+
+				if ( $configModel->{DelectusConfigFieldsExtension::PrivateFolderFieldName} ) {
+					$folderPath = $configModel->{DelectusConfigFieldsExtension::PrivateFolderFieldName};
+
+				} else {
+
+					$folderPath = Controller::join_links(
+						str_replace(
+							array_map(
+								function ( $fieldName ) {
+									return '{' . $fieldName . '}';
+								},
+								array_keys( $configModel->toMap() )
+							),
+							$configModel->toMap(),
+							$configModel->config()->get( 'delectus_private_folder_format' )
+								?: static::config()->get( 'delectus_private_folder_format' )
+						)
+					);
+				}
+
+				$folder = Folder::find_or_make( $folderPath );
+			}
+		}
+
+		return $folder;
+	}
 	/**
 	 * Return version number from config of this exact module (so uninherited)
 	 *

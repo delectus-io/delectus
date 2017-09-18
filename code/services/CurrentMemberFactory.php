@@ -2,7 +2,7 @@
 
 use SilverStripe\Framework\Injector\Factory;
 
-class DelectusCurrentSiteConfigFactory implements Factory {
+class DelectusCurrentMemberFactory implements Factory {
 
 	/**
 	 * Creates a new service instance.
@@ -13,6 +13,6 @@ class DelectusCurrentSiteConfigFactory implements Factory {
 	 * @return object The created service instances.
 	 */
 	public function create( $service, array $params = array() ) {
-		return SiteConfig::current_site_config();
+		return Member::currentUser();
 	}
 }

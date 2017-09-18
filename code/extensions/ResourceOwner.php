@@ -9,7 +9,7 @@
 class DelectusResourceOwnerExtension extends DataExtension {
 	private static $many_many = [
 		'Files' => 'File',
-		'Links' => 'DelectusLink',
+		'Links' => 'DelectusLinkModel',
 	];
 
 	private static $many_many_extraFields = [
@@ -49,9 +49,9 @@ class DelectusResourceOwnerExtension extends DataExtension {
 
 	public function canViewLink( $idOrURLOrDelectusLink ) {
 		if ( is_int( $idOrURLOrDelectusLink ) ) {
-			$link = DelectusLink::get()->byID( $idOrURLOrDelectusLink );
+			$link = DelectusLinkModel::get()->byID( $idOrURLOrDelectusLink );
 		} elseif ( ! is_object( $idOrURLOrDelectusLink ) ) {
-			$link = DelectusLink::get()->filter( [
+			$link = DelectusLinkModel::get()->filter( [
 				'URL' => $idOrURLOrDelectusLink,
 			] )->first();
 		} else {

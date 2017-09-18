@@ -3,7 +3,7 @@
 /**
  * Link represents a link to a resource other than a File
  */
-class DelectusLink extends DataObject {
+class DelectusLinkModel extends DataObject {
 	private static $db = [
 		'URL' => 'Text'
 	];

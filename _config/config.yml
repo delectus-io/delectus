@@ -1,6 +1,7 @@
 ---
 Name: delectus-config
 After:
+  - 'cms/*'
   - 'framework/*'
 ---
 Injector:
@@ -10,16 +11,16 @@ Injector:
     class: DelectusOpenSSLEncryption
   DelectusModule:
     class: DelectusModule
+  DelectusStatisticModel:
+    class: DelectusWebSiteStatisticModel
   DelectusTransport:
     class: DelectusCURLTransport
     properties:
       module: %$DelectusModule
       encoder: %$TransportEncoding
       encrypter: %$TransportEncryption
-  DelectusConfigModel:
+  DelectusConfigObject:
     factory: DelectusCurrentSiteConfigFactory
-  DelectusResourceOwner:
-    factory: DelectusCurrentMemberResourceOwner
 DelectusModule:
   version: v1
   # Set to the client token you have been allocated, used to communicate with the delectus service
@@ -36,4 +37,4 @@ DelectusModule:
   # max size of a single uploaded file in MB
   default_max_upload_file_size: 10
 SiteConfig:
-  delectus_fields_visible: true
+  delectus_config_fields_visible: true
