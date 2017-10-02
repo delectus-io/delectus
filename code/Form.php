@@ -32,10 +32,6 @@ class DelectusForm extends BootstrapForm {
 		parent::__construct($controller, $name, $fields, $actions, $validator);
 	}
 
-	public function setSessionMessage($message, $type = 'success') {
-		$this->controller->setSessionMessage($message, $type);
-	}
-
 	/**
 	 * Shortcut method to get the current logged in user
 	 * @return Member
