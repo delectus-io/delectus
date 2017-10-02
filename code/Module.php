@@ -15,7 +15,7 @@ class DelectusModule extends \Object {
 	// name of tab in cms to show delectus related fields/controls on
 	private static $cms_tab_name = 'Root.Delectus';
 
-	private static $admin_tab_name = 'Delectus';
+	private static $admin_tab_name = 'Root.DelectusAdmin';
 
 	/**
 	 * Set to the client token you have been allocated, used to communicate with the delectus service
