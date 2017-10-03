@@ -27,8 +27,34 @@ class DelectusResourceOwnerExtension extends DataExtension {
 		$resources = new ArrayList();
 		$resources->merge( $this->owner->Files() );
 		$resources->merge( $this->owner->Links() );
-		$resources->sort('LastEdited desc');
+		$resources->sort( 'LastEdited desc' );
+
 		return $resources;
+	}
+
+	/**
+	 * @param File|\DelectusLinkModel $resource
+	 *
+	 * @return \DataObject
+	 * @throws \Exception
+	 * @throws \InvalidArgumentException
+	 */
+	public function addResource( $resource ) {
+		if ( $resource instanceof File ) {
+			$this->Files()->add( $resource, [
+				'RelatedDate' => date( 'Y-m-d H:i:s' ),
+				'RelatedByID' => Member::currentUserID(),
+			] );
+		} elseif ( $resource instanceof DelectusLinkModel ) {
+			$this->Links()->add( $resource, [
+				'RelatedDate' => date( 'Y-m-d H:i:s' ),
+				'RelatedByID' => Member::currentUserID(),
+			] );
+		} else {
+			throw new Exception( "Unhandled resource type " . get_class( $resource ), 'error' );
+		}
+
+		return $this->owner;
 	}
 
 	public function canViewFile( $idOrPathOrFile ) {
