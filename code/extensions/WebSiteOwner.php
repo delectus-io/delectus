@@ -1,10 +1,10 @@
 <?php
 
 /**
- * DelectusWebSiteOwnerExtension add to model which 'owns' websites, e.g. Member or Client
+ * DelectusWebSitesOwnerExtension add to model which 'owns' websites, e.g. Member or Client
  * @method HasManyList WebSites()
  */
-class DelectusWebSiteOwnerExtension extends DataExtension {
+class DelectusWebSitesOwnerExtension extends DataExtension {
 	private static $has_many = [
 		'WebSites' => DelectusWebSiteModel::class,
 	];

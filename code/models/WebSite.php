@@ -18,6 +18,10 @@ class DelectusWebSiteModel extends DelectusModel {
 	const RequestTokenFieldName = DelectusWebSiteFieldsExtension::SiteIdentifierFieldName;
 	const ModelTokenFieldName   = DelectusWebSiteFieldsExtension::SiteIdentifierFieldName;
 
+	private static $db = [
+		'Title' => 'Varchar(32)'
+	];
+
 	private static $has_many = [
 		'Statistics' => DelectusWebSiteStatisticModel::class,
 	];
@@ -35,6 +39,10 @@ class DelectusWebSiteModel extends DelectusModel {
 
 	public function canDelete( $member = null ) {
 		return Member::currentUser()->WebSites()->filter( 'ID', $this->owner );
+	}
+
+	public static function get_for_owner() {
+		return \Injector::inst()->get('DelectusWebSitesOwner')->WebSites();
 	}
 
 	/**

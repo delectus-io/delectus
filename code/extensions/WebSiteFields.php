@@ -21,4 +21,7 @@ class DelectusWebSiteFieldsExtension extends \DataExtension {
 		self::LastRefreshedFieldName       => 'SS_Datetime',
 	];
 
+	public function getTitle() {
+		return parent::Title ?: $this->{self::PrimaryDomainFieldName};
+	}
 }
