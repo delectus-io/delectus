@@ -137,14 +137,14 @@ class DelectusModule extends \Object {
 	}
 
 	/**
-	 * @return \DelectusIndexService
+	 * @return \DelectusIndexServiceInterface
 	 */
 	public static function index_service() {
 		return \Injector::inst()->get( 'DelectusIndexService' );
 	}
 
 	/**
-	 * @return DelectusSearchService
+	 * @return \DelectusSearchServiceInterface
 	 */
 	public static function search_service() {
 		return \Injector::inst()->get( 'DelectusSearchService' );
